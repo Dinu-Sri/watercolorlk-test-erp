@@ -117,6 +117,16 @@ $brandLine = $product ? strtoupper(trim((string)($product['brand_name'] ?: 'Wate
 $categoryName = $product ? (string)($product['category_name'] ?? '') : '';
 $bestSellers = $product ? $repo->listBestSellersByCategory($categoryName, (int)$product['erp_product_id'], 4) : [];
 
+// Fetch reviews from database
+$dbReviews = [];
+try {
+    $reviewRepository = new Repositories\GoogleReviewRepository(appDb());
+    $dbReviews = $reviewRepository->getByMinRating(4.0, 10); // 4+ stars, max 10
+} catch (Exception $e) {
+    // Reviews table may not exist yet or database error - silently ignore
+    $dbReviews = [];
+}
+
 $reviewSummary = fetchGoogleReviewSummary();
 $googleProfileUrl = trim((string)($reviewSummary['url'] ?? ''));
 if ($googleProfileUrl === '') {
@@ -814,6 +824,37 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                     </div>
                     <a class="review-link" href="<?= htmlspecialchars($googleProfileUrl) ?>" target="_blank" rel="noopener">See more reviews</a>
                 </div>
+
+                <?php if (count($dbReviews) > 0): ?>
+                <div class="module" style="margin-top:16px;">
+                    <div class="reviews-head"><h2>📌 Recent Reviews from Customers</h2></div>
+                    <div class="review-grid">
+                        <?php foreach ($dbReviews as $review): 
+                            $stars = (int)round((float)($review['rating'] ?? 5));
+                            $reviewText = (string)($review['review_text'] ?? '');
+                            $isLongReview = textLength($reviewText) > 140;
+                        ?>
+                            <article class="review">
+                                <div class="review-top">
+                                    <img class="review-avatar" src="<?= htmlspecialchars((string)($review['profile_picture_local_path'] ?: 'assets/images/brand/favicon-watercolorlk.webp')) ?>" alt="reviewer" onerror="this.src='assets/images/brand/favicon-watercolorlk.webp'">
+                                    <div class="review-meta">
+                                        <a class="review-author" href="#" onclick="return false;">
+                                            <span class="name"><?= htmlspecialchars((string)($review['author'] ?: 'Customer')) ?></span>
+                                            <img class="g-icon" src="assets/images/google icon for go near user name.svg" alt="Google">
+                                        </a>
+                                        <div class="review-time"><?= htmlspecialchars((string)($review['review_date'] ? date('M d, Y', strtotime((string)$review['review_date'])) : 'Recently')) ?></div>
+                                    </div>
+                                </div>
+                                <div class="r-stars"><span><?= str_repeat('★', max(1, min(5, $stars))) ?></span><img class="verified" src="assets/images/verification icon.png" alt="Verified"></div>
+                                <p class="<?= $isLongReview ? 'truncate' : '' ?>"><?= htmlspecialchars($reviewText) ?></p>
+                                <?php if ($isLongReview): ?>
+                                    <a class="read-more" href="#" onclick="toggleReviewText(this); return false;">Read more</a>
+                                <?php endif; ?>
+                            </article>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
 
                 <div class="module" style="margin-top:16px;">
                     <div class="reviews-head"><h2>Product details</h2></div>
