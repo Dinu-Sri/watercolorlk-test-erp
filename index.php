@@ -64,78 +64,50 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
             gap: 20px;
             padding: 14px 0;
         }
-        .brand { display: flex; align-items: center; gap: 14px; min-width: 240px; text-decoration: none; }
-        .logo { height: 38px; width: auto; display: block; }
-        .brand-copy strong { display: block; color: var(--brand-navy); font: 700 1.05rem/1 'Montserrat', sans-serif; }
-        .brand-copy span { display: block; color: #5b677e; font: 600 .76rem/1.3 'Montserrat', sans-serif; letter-spacing: .04em; }
+        .brand {
+            min-width: 300px;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 6px;
+        }
+        .logo { height: 42px; width: auto; display: block; }
+        .brand-sub {
+            color: #43516d;
+            font: 700 .79rem/1.2 'Montserrat', sans-serif;
+            letter-spacing: .02em;
+        }
         .header-search { flex: 1; position: relative; }
         .header-search-input {
             width: 100%;
             border: 1px solid #d7c9b8;
             outline: none;
             border-radius: 999px;
-            padding: 14px 18px 14px 48px;
+            padding: 17px 18px 17px 48px;
             background: #fff;
             color: #1f2a3d;
-            font: 500 .96rem/1.2 'Source Sans 3', sans-serif;
+            font: 600 1.02rem/1.2 'Source Sans 3', sans-serif;
         }
         .header-search-input::placeholder { color: #7a828f; }
         .header-search-input:focus { border-color: var(--amber); box-shadow: 0 0 0 4px rgba(232,118,10,.14); }
         .header-search span { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: #6d7383; font-size: .85rem; }
-        .header-links { display: flex; align-items: center; gap: 14px; color: #5d6780; font: 600 .86rem/1 'Montserrat', sans-serif; }
-        .header-links .pill { padding: 10px 15px; border-radius: 999px; background: #fff; color: var(--brand-navy); border: 1px solid var(--line); text-decoration: none; }
-
-        .hero { padding: 40px 0 24px; }
-        .hero-grid {
-            display: grid; grid-template-columns: 1.18fr .82fr; gap: 24px; align-items: stretch;
-        }
-        .hero-card,
-        .panel {
-            background: rgba(255,255,255,.84);
-            border: 1px solid rgba(255,255,255,.72);
-            box-shadow: var(--shadow-sm);
-        }
-        .hero-card {
-            position: relative;
-            overflow: hidden;
-            border-radius: 28px;
-            padding: 34px;
-        }
-        .hero-card::after {
-            content: '';
-            position: absolute;
-            inset: auto -8% -25% auto;
-            width: 340px;
-            height: 340px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(232,118,10,.18), rgba(196,112,90,.08), transparent 68%);
-        }
-        .eyebrow {
+        .header-actions { display: flex; align-items: center; gap: 10px; }
+        .icon-btn {
+            width: 46px;
+            height: 46px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
             display: inline-flex;
             align-items: center;
-            gap: 10px;
-            padding: 8px 14px;
-            border-radius: 999px;
-            background: rgba(27,45,79,.08);
+            justify-content: center;
             color: var(--brand-navy);
-            font: 700 12px/1 'Montserrat', sans-serif;
-            letter-spacing: .12em;
-            text-transform: uppercase;
+            background: #fff;
+            text-decoration: none;
+            box-shadow: var(--shadow-sm);
         }
-        .eyebrow::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: var(--amber); }
-        .title {
-            margin: 16px 0 10px;
-            color: var(--brand-navy-deep);
-            font: 700 clamp(2.3rem, 5vw, 4rem)/1.06 'Playfair Display', serif;
-            max-width: 13ch;
-        }
-        .lead { color: #3d475c; margin: 0; max-width: 58ch; }
-        .hero-side { display: grid; gap: 16px; }
-        .panel { border-radius: 24px; padding: 24px; }
-        .panel h3 { margin: 0 0 10px; color: var(--brand-navy); font: 700 1.2rem/1.2 'Montserrat', sans-serif; }
-        .bullet-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; color: #38445a; }
-        .bullet-list li { display: flex; gap: 9px; align-items: flex-start; }
-        .bullet-list li::before { content: '+'; color: var(--amber); font-weight: 700; line-height: 1; transform: translateY(3px); }
+        .icon-btn svg { width: 21px; height: 21px; }
+        .home-main { padding: 20px 0 30px; }
         .suggestions {
             margin-top: 6px;
             border: 1px solid #d6cab8;
@@ -154,29 +126,24 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
         }
         .suggestion:hover { background: #fdf8f1; }
         .suggestion:last-child { border-bottom: 0; }
-        .meta-box { font: 600 14px/1.4 'Montserrat', sans-serif; color: #425170; }
-        .metrics { margin-top: 18px; display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; }
-        .metric { padding: 14px; border-radius: 16px; border: 1px solid var(--line); background: #fff; }
-        .metric strong { display: block; color: var(--brand-navy); font: 700 1.2rem/1 'Montserrat', sans-serif; }
-        .metric span { display: block; margin-top: 4px; color: var(--muted); font-size: .8rem; }
-
-        .section { padding: 4px 0 20px; }
-        .section-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 16px; }
-        .section-head h2 { margin: 8px 0 0; color: var(--brand-navy-deep); font: 700 clamp(1.7rem, 2.8vw, 2.4rem)/1.1 'Playfair Display', serif; }
-        .section-head p { margin: 0; max-width: 60ch; color: #495164; }
-
-        .category-grid { display: grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap: 14px; }
+        .meta-row {
+            margin: 0 0 12px;
+            color: #4e5b73;
+            font: 700 .86rem/1.3 'Montserrat', sans-serif;
+            letter-spacing: .02em;
+        }
+        .category-grid { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 12px; margin-bottom: 18px; }
         .category-card {
             background: rgba(255,255,255,.9);
             border: 1px solid var(--line);
-            border-radius: 22px;
-            padding: 18px;
+            border-radius: 18px;
+            padding: 12px;
             box-shadow: var(--shadow-sm);
             text-align: center;
+            text-decoration: none;
         }
-        .category-icon { width: 82px; height: 82px; object-fit: contain; margin: 0 auto 12px; }
-        .category-card strong { display: block; color: var(--brand-navy); font: 700 1rem/1.1 'Montserrat', sans-serif; }
-        .category-card span { display: block; margin-top: 6px; color: var(--muted); font-size: .86rem; }
+        .category-icon { width: 74px; height: 74px; object-fit: contain; margin: 0 auto 8px; }
+        .category-card strong { display: block; color: var(--brand-navy); font: 700 .83rem/1.1 'Montserrat', sans-serif; }
 
         .grid {
             display: grid;
@@ -226,8 +193,9 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
         }
         .price-row { display: flex; align-items: end; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
         .price { color: var(--brand-navy); font: 700 1.55rem/1 'Source Sans 3', sans-serif; }
-        .price-old { color: #9a8e81; text-decoration: line-through; font-size: .95rem; }
-        .price-off { color: var(--danger); font: 700 .8rem/1 'Montserrat', sans-serif; }
+        .deal-row { display: flex; align-items: baseline; gap: 10px; }
+        .price-old { color: #9a8e81; text-decoration: line-through; font-size: 1rem; }
+        .price-off { color: var(--danger); font: 700 .88rem/1 'Montserrat', sans-serif; }
         .rating { margin-top: 8px; display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: .82rem; }
         .stars { color: var(--gold); letter-spacing: .08em; }
         .stock { margin-top: 4px; font: 600 13px/1.2 'Montserrat', sans-serif; }
@@ -245,6 +213,7 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
         }
         .badge.sale { background: rgba(192,57,43,.1); color: var(--danger); }
         .badge.stock { background: rgba(45,122,79,.12); color: var(--success); }
+        .badge.low { background: rgba(232,118,10,.12); color: #a44d05; }
         .empty {
             grid-column: 1 / -1;
             background: rgba(255, 255, 255, .86);
@@ -258,13 +227,9 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
         @media (max-width: 720px) {
             .wrap { width: min(calc(100% - 24px), 1240px); }
             .header-inner { padding: 12px 0; }
-            .hero { padding-top: 20px; }
-            .hero-grid { grid-template-columns: 1fr; }
             .header-inner { flex-wrap: wrap; }
             .header-search, .brand { min-width: 100%; }
             .category-grid { grid-template-columns: 1fr 1fr; }
-            .section-head { flex-direction: column; align-items: start; }
-            .metrics { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -273,89 +238,50 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
     <div class="wrap header-inner">
         <a class="brand" href="index.php">
             <img class="logo" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK">
-            <span class="brand-copy">
-                <strong>Watercolor.LK</strong>
-                <span>Premium watercolor supplies in Sri Lanka</span>
-            </span>
+            <span class="brand-sub">පටන් ගන්න! පාට කරන්න! ජිවිතය විදින්න!</span>
         </a>
         <div class="header-search">
             <span>Find</span>
             <input id="search" class="header-search-input" placeholder="Search products, brands, categories..." autocomplete="off">
             <div id="suggestions" class="suggestions"></div>
         </div>
-        <nav class="header-links">
-            <a href="#categories">Categories</a>
-            <a class="pill" href="#products">Shop now</a>
-        </nav>
+        <div class="header-actions">
+            <a class="icon-btn" href="admin/index.php" aria-label="Account">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
+            </a>
+            <a class="icon-btn" href="#" aria-label="Cart" id="cartButton">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 7H7"/></svg>
+            </a>
+        </div>
     </div>
 </header>
 
-<main class="wrap">
-    <section class="hero">
-        <div class="hero-grid">
-            <div class="hero-card">
-                <span class="eyebrow">Live Catalog</span>
-                <h1 class="title">Your trusted watercolor store for artists and learners.</h1>
-                <p class="lead">Discover papers, brushes, paints, and sketchbooks with clear stock and pricing. Every product card is optimized to help customers decide faster.</p>
-                <div class="metrics">
-                    <div class="metric"><strong>Real-time</strong><span>Local catalog sync with ERP feed</span></div>
-                    <div class="metric"><strong>Island-wide</strong><span>Fast and safe shipping support</span></div>
-                    <div class="metric"><strong>Trusted</strong><span>Curated art materials only</span></div>
-                </div>
-            </div>
-            <div class="hero-side">
-                <div class="panel">
-                    <h3>Why customers buy here</h3>
-                    <ul class="bullet-list">
-                        <li>Fast search that works while typing</li>
-                        <li>Clear pricing and stock visibility</li>
-                        <li>Quick path to product ordering</li>
-                        <li>Reliable catalog updates from ERP</li>
-                    </ul>
-                </div>
-                <div class="panel">
-                    <h3 class="meta-box" id="resultMeta">Showing latest products</h3>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <section class="section" id="categories">
-        <div class="section-head">
-            <div>
-                <span class="eyebrow">Categories</span>
-                <h2>Shop by watercolor essentials</h2>
-            </div>
-            <p>Browse popular categories first and narrow down faster using live search above.</p>
-        </div>
+<main class="wrap home-main">
+    <section id="categories">
         <div class="category-grid">
-            <article class="category-card"><img class="category-icon" src="assets/images/mascots/watercolor-brushes-1.webp" alt="Brushes"><strong>Brushes</strong><span>Travel, wash, mop, and detail</span></article>
-            <article class="category-card"><img class="category-icon" src="assets/images/mascots/watercolor-papers.webp" alt="Papers"><strong>Papers</strong><span>Blocks, sheets, cotton surfaces</span></article>
-            <article class="category-card"><img class="category-icon" src="assets/images/mascots/watercolor-paints.webp" alt="Paints"><strong>Paints</strong><span>Artist-grade sets and tubes</span></article>
-            <article class="category-card"><img class="category-icon" src="assets/images/mascots/watercolor-sktechbooks.webp" alt="Sketchbooks"><strong>Sketchbooks</strong><span>Premium books for practice</span></article>
+            <a class="category-card" href="#"><img class="category-icon" src="assets/images/mascots/watercolor-brushes-1.webp" alt="Brushes"><strong>Brushes</strong></a>
+            <a class="category-card" href="#"><img class="category-icon" src="assets/images/mascots/watercolor-papers.webp" alt="Papers"><strong>Papers</strong></a>
+            <a class="category-card" href="#"><img class="category-icon" src="assets/images/mascots/watercolor-paints.webp" alt="Paints"><strong>Paints</strong></a>
+            <a class="category-card" href="#"><img class="category-icon" src="assets/images/mascots/watercolor-sktechbooks.webp" alt="Sketchbooks"><strong>Sketchbooks</strong></a>
+            <a class="category-card" href="#"><img class="category-icon" src="assets/images/mascots/watercolor-assesries.webp" alt="Accessories"><strong>Accessories</strong></a>
         </div>
+        <div class="meta-row" id="resultMeta">Showing latest products</div>
     </section>
 
-    <section class="section" id="products">
-        <div class="section-head">
-            <div>
-                <span class="eyebrow">Products</span>
-                <h2>Featured products</h2>
-            </div>
-            <p>Clean product cards built for clarity: image, title, price, proof, and stock in one balanced view.</p>
-        </div>
+    <section id="products">
         <div id="grid" class="grid">
         <?php foreach ($products as $product): ?>
             <a class="card" href="product.php?id=<?= (int)$product['erp_product_id'] ?>">
                 <div class="media">
                     <div class="card-badges">
-                        <?php if ($product['badge'] !== ''): ?>
+                        <?php if ((float)$product['stock_qty'] <= 0): ?>
+                            <span class="badge sale">Out of stock</span>
+                        <?php elseif ((float)$product['stock_qty'] <= 7): ?>
+                            <span class="badge low">Only <?= (int)$product['stock_qty'] ?> left</span>
+                        <?php elseif ($product['badge'] !== ''): ?>
                             <span class="badge"><?= htmlspecialchars((string)$product['badge']) ?></span>
-                        <?php endif; ?>
-                        <?php if ((float)$product['stock_qty'] > 0): ?>
-                            <span class="badge stock">In Stock</span>
                         <?php else: ?>
-                            <span class="badge sale">Out</span>
+                            <span class="badge">Featured</span>
                         <?php endif; ?>
                     </div>
                     <img class="img" src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$product['display_name']) ?>">
@@ -364,11 +290,10 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
                     <h3 class="name"><?= htmlspecialchars((string)$product['display_name']) ?></h3>
                     <div class="price-row">
                         <span class="price">LKR <?= number_format((float)$product['price'], 2) ?></span>
-                        <span class="price-old">LKR <?= number_format((float)$product['price'] * 1.12, 2) ?></span>
-                        <span class="price-off">Save 12%</span>
                     </div>
+                    <div class="deal-row"><span class="price-old">LKR <?= number_format((float)$product['price'] * 1.12, 2) ?></span><span class="price-off">Save 12%</span></div>
                     <div class="rating"><span class="stars">★★★★★</span><span>4.9 rated</span><span>120+ sold</span></div>
-                    <div class="stock <?= (float)$product['stock_qty'] > 0 ? 'ok' : 'no' ?>"><?= (float)$product['stock_qty'] > 0 ? 'In stock' : 'Out of stock' ?></div>
+                    <div class="stock <?= (float)$product['stock_qty'] > 0 ? 'ok' : 'no' ?>"><?= (float)$product['stock_qty'] > 0 ? ((float)$product['stock_qty'] <= 7 ? 'Only ' . (int)$product['stock_qty'] . ' left in stock' : 'In stock') : 'Out of stock' ?></div>
                 </div>
             </a>
         <?php endforeach; ?>
@@ -381,10 +306,16 @@ const input = document.getElementById('search');
 const suggestions = document.getElementById('suggestions');
 const grid = document.getElementById('grid');
 const resultMeta = document.getElementById('resultMeta');
+const cartButton = document.getElementById('cartButton');
 const initialProducts = <?= $initialProductsJson ?: '[]' ?>;
 let suggestTimer = null;
 let searchTimer = null;
 let requestId = 0;
+
+cartButton.addEventListener('click', (event) => {
+    event.preventDefault();
+    alert('Cart module is coming next.');
+});
 
 updateMeta(initialProducts.length, 'Showing latest products');
 
@@ -474,8 +405,7 @@ function renderProducts(items) {
         <a class="card" href="product.php?id=${item.erp_product_id}">
             <div class="media">
                 <div class="card-badges">
-                    ${item.badge ? `<span class="badge">${escapeHtml(item.badge)}</span>` : ''}
-                    ${Number(item.stock_qty) > 0 ? `<span class="badge stock">In Stock</span>` : `<span class="badge sale">Out</span>`}
+                    ${renderTopBadge(item)}
                 </div>
                 <img class="img" src="${item.image_url || 'assets/images/brand/logo-watercolorlk.png'}" alt="${escapeHtml(item.display_name)}">
             </div>
@@ -483,14 +413,38 @@ function renderProducts(items) {
                 <h3 class="name">${escapeHtml(item.display_name)}</h3>
                 <div class="price-row">
                     <span class="price">LKR ${Number(item.price).toFixed(2)}</span>
-                    <span class="price-old">LKR ${(Number(item.price) * 1.12).toFixed(2)}</span>
-                    <span class="price-off">Save 12%</span>
                 </div>
+                <div class="deal-row"><span class="price-old">LKR ${(Number(item.price) * 1.12).toFixed(2)}</span><span class="price-off">Save 12%</span></div>
                 <div class="rating"><span class="stars">★★★★★</span><span>4.9 rated</span><span>120+ sold</span></div>
-                <div class="stock ${Number(item.stock_qty) > 0 ? 'ok' : 'no'}">${Number(item.stock_qty) > 0 ? 'In stock' : 'Out of stock'}</div>
+                <div class="stock ${Number(item.stock_qty) > 0 ? 'ok' : 'no'}">${renderStockText(item)}</div>
             </div>
         </a>
     `).join('');
+}
+
+function renderTopBadge(item) {
+    const qty = Number(item.stock_qty || 0);
+    if (qty <= 0) {
+        return '<span class="badge sale">Out of stock</span>';
+    }
+    if (qty <= 7) {
+        return `<span class="badge low">Only ${Math.floor(qty)} left</span>`;
+    }
+    if (item.badge) {
+        return `<span class="badge">${escapeHtml(item.badge)}</span>`;
+    }
+    return '<span class="badge">Featured</span>';
+}
+
+function renderStockText(item) {
+    const qty = Number(item.stock_qty || 0);
+    if (qty <= 0) {
+        return 'Out of stock';
+    }
+    if (qty <= 7) {
+        return `Only ${Math.floor(qty)} left in stock`;
+    }
+    return 'In stock';
 }
 
 function updateMeta(count, label) {

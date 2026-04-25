@@ -8,7 +8,8 @@ $erpId = (int)($_GET['id'] ?? 0);
 $repo = new ProductRepository(appDb());
 $product = $erpId > 0 ? $repo->getByErpId($erpId) : null;
 $stock = $product ? (float)$product['stock_qty'] : 0;
-$stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
+$stockPercent = $stock <= 0 ? 0 : min(100, max(12, (int)($stock * 12)));
+$brandLine = $product ? strtoupper(trim((string)($product['brand_name'] ?: 'Watercolor.LK / Artist Grade'))) : 'Watercolor.LK / Artist Grade';
 ?>
 <!doctype html>
 <html lang="en">
@@ -55,6 +56,7 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
         }
         .header-inner { display: flex; align-items: center; gap: 16px; padding: 14px 0; }
         .logo { height: 42px; width: auto; }
+        .brand-sub { color: #43516d; font: 700 .79rem/1.2 'Montserrat', sans-serif; letter-spacing: .02em; }
         .back {
             display: inline-flex;
             align-items: center;
@@ -79,14 +81,35 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
             padding: 24px;
             box-shadow: var(--shadow-sm);
         }
+        .gallery-stage {
+            border: 1px solid #ece2d5;
+            background: #f3f0eb;
+            border-radius: 24px;
+            min-height: 520px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 28px;
+        }
         .img {
             width: 100%;
-            border-radius: 22px;
-            border: 1px solid #e8decd;
-            background: #fff;
-            aspect-ratio: 1 / 1;
-            object-fit: cover;
+            max-height: 450px;
+            border-radius: 14px;
+            object-fit: contain;
+            background: transparent;
         }
+        .thumbs { display: flex; gap: 12px; margin-top: 16px; }
+        .thumb {
+            width: 74px;
+            height: 74px;
+            border-radius: 16px;
+            border: 2px solid #d8ccbb;
+            background: #fff;
+            padding: 7px;
+            cursor: pointer;
+        }
+        .thumb.active { border-color: var(--amber); }
+        .thumb img { width: 100%; height: 100%; object-fit: contain; }
         .brand { color: #8f4d39; font: 700 12px/1 'Montserrat', sans-serif; letter-spacing: .12em; text-transform: uppercase; }
         h1 {
             margin: 8px 0;
@@ -141,11 +164,7 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
         }
         .rating { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: .84rem; margin-top: 8px; }
         .stars { color: var(--gold); letter-spacing: .08em; }
-        .desc {
-            margin: 0 0 12px;
-            color: #313949;
-            font: 500 16px/1.65 'Source Sans 3', sans-serif;
-        }
+        .desc { margin: 0 0 12px; color: #313949; font: 500 16px/1.65 'Source Sans 3', sans-serif; }
         .badge {
             display: inline-block;
             margin-bottom: 9px;
@@ -157,30 +176,36 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
             text-transform: uppercase;
             letter-spacing: .09em;
         }
-        .order-title {
-            margin: 14px 0 4px;
-            color: var(--brand-navy);
-            font: 700 16px/1.2 'Montserrat', sans-serif;
-            letter-spacing: .04em;
-            text-transform: uppercase;
-        }
-        .field {
-            width: 100%;
-            box-sizing: border-box;
-            padding: 11px;
-            border-radius: 12px;
-            border: 1px solid #d5c8b4;
-            margin-top: 10px;
-            font: 500 15px/1.3 'Source Sans 3', sans-serif;
-            color: #222b3f;
+        .urgency-row { margin: 16px 0; display: flex; gap: 10px; align-items: center; color: #b23c2c; font: 700 1.03rem/1.2 'Source Sans 3', sans-serif; }
+        .dot { width: 11px; height: 11px; border-radius: 999px; background: #bc4433; }
+        .qty-head { margin: 14px 0 8px; color: var(--brand-navy); font: 700 1.02rem/1 'Montserrat', sans-serif; letter-spacing: .06em; text-transform: uppercase; }
+        .qty-controls {
+            width: 170px;
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            border: 2px solid #d5c8b4;
+            border-radius: 16px;
+            overflow: hidden;
+            margin-bottom: 16px;
             background: #fff;
         }
+        .qty-controls button,
+        .qty-controls input {
+            border: 0;
+            background: transparent;
+            text-align: center;
+            font: 700 1.05rem/1.2 'Montserrat', sans-serif;
+            color: var(--brand-navy);
+            height: 44px;
+        }
+        .qty-controls button { cursor: pointer; }
+        .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
         .button {
             width: 100%;
             box-sizing: border-box;
             padding: 13px;
             border-radius: 12px;
-            margin-top: 12px;
+            margin-top: 0;
             border: 0;
             cursor: pointer;
             color: #fff;
@@ -194,6 +219,7 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
         }
         .button.whatsapp {
             background: #25d366;
+            margin-top: 12px;
         }
         .trust-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-top: 14px; }
         .trust { padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: #fff; text-align: center; }
@@ -219,6 +245,7 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
 <header class="site-header">
     <div class="wrap header-inner">
         <img class="logo" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK">
+        <span class="brand-sub">පටන් ගන්න! පාට කරන්න! ජිවිතය විදින්න!</span>
     </div>
 </header>
 
@@ -230,13 +257,20 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
     <?php else: ?>
         <div class="layout">
             <div class="gallery">
-                <img class="img" src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$product['name']) ?>">
+                <div class="gallery-stage">
+                    <img id="mainImage" class="img" src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$product['name']) ?>">
+                </div>
+                <div class="thumbs">
+                    <button class="thumb active" type="button" data-src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>"><img src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="thumb"></button>
+                    <button class="thumb" type="button" data-src="assets/images/mascots/watercolor-brushes-1.webp"><img src="assets/images/mascots/watercolor-brushes-1.webp" alt="thumb"></button>
+                    <button class="thumb" type="button" data-src="assets/images/mascots/watercolor-paints.webp"><img src="assets/images/mascots/watercolor-paints.webp" alt="thumb"></button>
+                </div>
             </div>
             <div class="box">
                 <?php if (!empty($product['badge'])): ?>
                     <span class="badge"><?= htmlspecialchars((string)$product['badge']) ?></span>
                 <?php endif; ?>
-                <div class="brand">Watercolor.LK Curated</div>
+                <div class="brand"><?= htmlspecialchars($brandLine) ?></div>
                 <h1><?= htmlspecialchars((string)$product['name']) ?></h1>
                 <div class="rating"><span class="stars">★★★★★</span><span>4.9 rated by buyers</span><span>126 sold</span></div>
                 <div class="price-panel">
@@ -244,24 +278,22 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
                     <span class="price">LKR <?= number_format((float)$product['price'], 2) ?></span>
                     <span class="price-compare">LKR <?= number_format((float)$product['price'] * 1.12, 2) ?></span>
                 </div>
-                <div class="stock <?= $stock > 2 ? 'ok' : 'low' ?>"><?= $stock > 2 ? 'In stock' : 'Limited stock' ?>: <?= $stock ?></div>
+                <div class="urgency-row"><span class="dot"></span><span><?= $stock > 0 ? ('Only ' . (int)$stock . ' left in stock') : 'Out of stock' ?></span></div>
                 <div class="urgency"><span></span></div>
                 <p class="desc"><?= nl2br(htmlspecialchars((string)$product['description'])) ?></p>
 
-                <h3 class="order-title">Quick Order</h3>
-                <input id="customer_name" class="field" placeholder="Full name">
-                <input id="customer_phone" class="field" placeholder="Phone number">
-                <input id="customer_email" class="field" placeholder="Email (optional)">
-                <select id="payment_method" class="field">
-                    <option value="payhere">PayHere</option>
-                    <option value="bank_transfer">Bank transfer</option>
-                    <option value="whatsapp">WhatsApp assisted</option>
-                </select>
-                <textarea id="notes" class="field" placeholder="Notes"></textarea>
-                <input id="qty" class="field" type="number" value="1" min="1" step="1">
-                <button class="button" onclick="submitOrder()">Place Order</button>
-                <button class="button secondary" type="button">Add to Cart</button>
-                <button class="button whatsapp" type="button">WhatsApp Order</button>
+                <h3 class="qty-head">Quantity</h3>
+                <div class="qty-controls">
+                    <button type="button" onclick="changeQty(-1)">-</button>
+                    <input id="qty" type="text" value="1" readonly>
+                    <button type="button" onclick="changeQty(1)">+</button>
+                </div>
+
+                <div class="actions">
+                    <button class="button" onclick="submitOrder('payhere')">Buy Now</button>
+                    <button class="button secondary" type="button" onclick="addToCart()">Add to Cart</button>
+                </div>
+                <button class="button whatsapp" type="button" onclick="openWhatsAppOrder()">WhatsApp Order</button>
                 <div id="orderResult"></div>
 
                 <div class="trust-grid">
@@ -277,16 +309,51 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
                 product_id: <?= (int)$product['id'] ?>,
                 erp_product_id: <?= (int)$product['erp_product_id'] ?>,
                 sku: <?= json_encode((string)$product['sku']) ?>,
-                unit_price: <?= json_encode((float)$product['price']) ?>
+                unit_price: <?= json_encode((float)$product['price']) ?>,
+                name: <?= json_encode((string)$product['name']) ?>
             };
 
-            async function submitOrder() {
+            let customerName = '';
+            let customerPhone = '';
+
+            document.querySelectorAll('.thumb').forEach((thumb) => {
+                thumb.addEventListener('click', () => {
+                    document.querySelectorAll('.thumb').forEach((t) => t.classList.remove('active'));
+                    thumb.classList.add('active');
+                    document.getElementById('mainImage').src = thumb.dataset.src;
+                });
+            });
+
+            function changeQty(delta) {
+                const input = document.getElementById('qty');
+                const next = Math.max(1, Number(input.value || 1) + delta);
+                input.value = String(next);
+            }
+
+            function ensureBuyerDetails() {
+                if (!customerName) {
+                    const name = window.prompt('Enter your full name');
+                    if (!name) return false;
+                    customerName = name.trim();
+                }
+                if (!customerPhone) {
+                    const phone = window.prompt('Enter your phone number');
+                    if (!phone) return false;
+                    customerPhone = phone.trim();
+                }
+                return true;
+            }
+
+            async function submitOrder(paymentMethod) {
+                if (!ensureBuyerDetails()) {
+                    return;
+                }
                 const payload = {
-                    customer_name: document.getElementById('customer_name').value.trim(),
-                    customer_phone: document.getElementById('customer_phone').value.trim(),
-                    customer_email: document.getElementById('customer_email').value.trim(),
-                    payment_method: document.getElementById('payment_method').value,
-                    notes: document.getElementById('notes').value.trim(),
+                    customer_name: customerName,
+                    customer_phone: customerPhone,
+                    customer_email: '',
+                    payment_method: paymentMethod,
+                    notes: '',
                     items: [
                         {
                             product_id: product.product_id,
@@ -317,6 +384,17 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
                     : 'Order saved locally and queued for ERP retry.';
 
                 box.innerHTML = `<span style="color:#1f5d23">Order #${data.order_id} created. ${syncMessage}</span>`;
+            }
+
+            function addToCart() {
+                const qty = Number(document.getElementById('qty').value || 1);
+                document.getElementById('orderResult').innerHTML = `<span style="color:#1f5d23">${qty} item(s) added to cart queue.</span>`;
+            }
+
+            function openWhatsAppOrder() {
+                const qty = Number(document.getElementById('qty').value || 1);
+                const text = encodeURIComponent(`Hi Watercolor.LK, I want to order ${product.name} (Qty: ${qty}).`);
+                window.open(`https://wa.me/94700000000?text=${text}`, '_blank');
             }
         </script>
     <?php endif; ?>
