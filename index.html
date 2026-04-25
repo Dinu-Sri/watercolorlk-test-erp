@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Watercolor.LK – Art Supplies Store</title>
+<style>
+  :root {
+    --primary: #6c4ab6;
+    --primary-light: #8d72e1;
+    --accent: #e45c9e;
+    --accent2: #f7a6c7;
+    --bg: #faf8ff;
+    --card-bg: #ffffff;
+    --text: #1a1a2e;
+    --muted: #7b7b9d;
+    --border: #e8e0f5;
+    --success: #0abf76;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --shadow: 0 2px 16px rgba(108,74,182,0.10);
+    --shadow-hover: 0 8px 32px rgba(108,74,182,0.22);
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+
+  /* ── HEADER ── */
+  header{background:linear-gradient(135deg,#3b1f7a 0%,#6c4ab6 50%,#c04fa0 100%);padding:0;position:sticky;top:0;z-index:100;box-shadow:0 2px 20px rgba(60,20,120,0.3);}
+  .header-inner{max-width:1400px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+  .logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+  .logo-icon{width:42px;height:42px;border-radius:12px;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:1.5rem;}
+  .logo-text{color:#fff;}
+  .logo-text h1{font-size:1.25rem;font-weight:700;letter-spacing:-0.5px;}
+  .logo-text span{font-size:0.72rem;opacity:.75;display:block;letter-spacing:.05em;}
+  .search-bar{flex:1;min-width:220px;position:relative;}
+  .search-bar input{width:100%;padding:10px 16px 10px 42px;border-radius:25px;border:none;background:rgba(255,255,255,0.18);color:#fff;font-size:0.9rem;outline:none;backdrop-filter:blur(4px);}
+  .search-bar input::placeholder{color:rgba(255,255,255,0.6);}
+  .search-bar input:focus{background:rgba(255,255,255,0.28);}
+  .search-icon{position:absolute;left:14px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,0.7);font-size:1rem;pointer-events:none;}
+  .header-meta{color:rgba(255,255,255,0.8);font-size:0.8rem;white-space:nowrap;}
+  #productCount{font-weight:700;color:#fff;}
+
+  /* ── TOOLBAR ── */
+  .toolbar{background:#fff;border-bottom:1px solid var(--border);sticky:top;position:sticky;top:70px;z-index:90;}
+  .toolbar-inner{max-width:1400px;margin:0 auto;padding:10px 24px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .sort-select{padding:7px 14px;border:1px solid var(--border);border-radius:20px;font-size:0.82rem;color:var(--text);background:#fff;cursor:pointer;outline:none;}
+  .sort-select:focus{border-color:var(--primary);}
+  .filter-btn{padding:7px 14px;border-radius:20px;border:1px solid var(--border);background:#fff;font-size:0.82rem;color:var(--muted);cursor:pointer;transition:all .15s;}
+  .filter-btn.active,.filter-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
+  .results-info{margin-left:auto;font-size:0.8rem;color:var(--muted);}
+
+  /* ── MAIN ── */
+  .main{max-width:1400px;margin:0 auto;padding:24px;}
+
+  /* ── SKELETON ── */
+  .skeleton-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:18px;}
+  .skeleton-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:var(--shadow);}
+  .skeleton-img{height:200px;background:linear-gradient(90deg,#f0eef8 25%,#e8e0f5 50%,#f0eef8 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;}
+  .skeleton-body{padding:14px;display:flex;flex-direction:column;gap:8px;}
+  .skeleton-line{height:12px;border-radius:6px;background:linear-gradient(90deg,#f0eef8 25%,#e8e0f5 50%,#f0eef8 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;}
+  .skeleton-line.short{width:60%;}
+  .skeleton-line.shorter{width:40%;}
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+  /* ── PRODUCT GRID ── */
+  #grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:18px;}
+
+  /* ── PRODUCT CARD ── */
+  .pcard{background:var(--card-bg);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);cursor:pointer;transition:transform .2s,box-shadow .2s;position:relative;display:flex;flex-direction:column;}
+  .pcard:hover{transform:translateY(-5px);box-shadow:var(--shadow-hover);}
+  .pcard-img-wrap{position:relative;background:#f5f0ff;overflow:hidden;}
+  .pcard-img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;transition:transform .3s;}
+  .pcard:hover .pcard-img{transform:scale(1.06);}
+  .pcard-badge{position:absolute;top:10px;left:10px;padding:3px 9px;border-radius:99px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.04em;}
+  .badge-instock{background:#d1fae5;color:#065f46;}
+  .badge-low{background:#fef3c7;color:#92400e;}
+  .badge-out{background:#fee2e2;color:#991b1b;}
+  .pcard-wishlist{position:absolute;top:10px;right:10px;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.9);display:flex;align-items:center;justify-content:center;font-size:1rem;border:none;cursor:pointer;opacity:0;transition:opacity .2s;color:#e45c9e;}
+  .pcard:hover .pcard-wishlist{opacity:1;}
+  .pcard-body{padding:13px 14px 14px;display:flex;flex-direction:column;gap:5px;flex:1;}
+  .pcard-name{font-size:0.85rem;font-weight:600;line-height:1.35;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .pcard-sku{font-size:0.7rem;color:var(--muted);font-family:monospace;}
+  .pcard-price-row{display:flex;align-items:baseline;gap:6px;margin-top:4px;}
+  .pcard-price{font-size:1.05rem;font-weight:700;color:var(--primary);}
+  .pcard-currency{font-size:0.72rem;font-weight:600;color:var(--muted);}
+  .pcard-stock{font-size:0.72rem;color:var(--muted);margin-top:2px;}
+  .pcard-stock.low{color:var(--warn);}
+  .pcard-stock.out{color:var(--danger);}
+  .pcard-footer{padding:0 14px 14px;margin-top:auto;}
+  .btn-add{width:100%;padding:9px;border:none;border-radius:8px;background:linear-gradient(90deg,var(--primary),var(--accent));color:#fff;font-size:0.82rem;font-weight:600;cursor:pointer;transition:opacity .15s;letter-spacing:.02em;}
+  .btn-add:hover{opacity:.88;}
+  .btn-add:disabled{background:#e0dcea;color:#aaa;cursor:not-allowed;}
+
+  /* ── EMPTY / ERROR ── */
+  .state-box{text-align:center;padding:80px 20px;color:var(--muted);}
+  .state-box .icon{font-size:3rem;margin-bottom:16px;}
+  .state-box h3{font-size:1.1rem;margin-bottom:8px;color:var(--text);}
+  .state-box p{font-size:0.85rem;line-height:1.6;max-width:440px;margin:0 auto;}
+  .state-box a{color:var(--primary);text-decoration:none;}
+
+
+
+  /* ── TOAST ── */
+  #toast{position:fixed;bottom:24px;right:24px;background:#1a1a2e;color:#fff;padding:12px 20px;border-radius:10px;font-size:0.85rem;font-weight:500;z-index:999;transform:translateY(80px);opacity:0;transition:all .3s;max-width:300px;}
+  #toast.show{transform:translateY(0);opacity:1;}
+
+  /* ── FOOTER ── */
+  footer{background:#16103a;color:rgba(255,255,255,0.5);text-align:center;padding:20px;font-size:0.78rem;margin-top:48px;}
+  footer span{color:rgba(255,255,255,0.8);}
+
+  @media(max-width:600px){
+    .header-inner{gap:12px;}
+    #grid{grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;}
+    .main{padding:16px;}
+    .toolbar-inner{padding:10px 16px;}
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="header-inner">
+    <a class="logo" href="#">
+      <div class="logo-icon">🎨</div>
+      <div class="logo-text">
+        <h1>Watercolor.LK</h1>
+        <span>Art Supplies &amp; Brushes</span>
+      </div>
+    </a>
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search products, SKU…" oninput="filterProducts()"/>
+    </div>
+    <div class="header-meta">
+      <span id="productCount">—</span> products
+    </div>
+  </div>
+</header>
+
+<!-- TOOLBAR -->
+<div class="toolbar">
+  <div class="toolbar-inner">
+    <select class="sort-select" id="sortSelect" onchange="sortProducts()">
+      <option value="default">Sort: Default</option>
+      <option value="price-asc">Price: Low → High</option>
+      <option value="price-desc">Price: High → Low</option>
+      <option value="name-asc">Name: A → Z</option>
+      <option value="stock-desc">In-Stock First</option>
+    </select>
+    <button class="filter-btn active" onclick="setFilter('all',this)">All</button>
+    <button class="filter-btn" onclick="setFilter('instock',this)">In Stock</button>
+    <button class="filter-btn" onclick="setFilter('low',this)">Low Stock</button>
+    <button class="filter-btn" onclick="setFilter('out',this)">Out of Stock</button>
+    <span class="results-info" id="resultsInfo"></span>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+  <!-- Skeleton -->
+  <div id="skeleton" class="skeleton-grid">
+    <div class="skeleton-card" style="height:320px"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line shorter"></div></div></div>
+    <div class="skeleton-card" style="height:320px"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line shorter"></div></div></div>
+    <div class="skeleton-card" style="height:320px"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line shorter"></div></div></div>
+    <div class="skeleton-card" style="height:320px"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line shorter"></div></div></div>
+    <div class="skeleton-card" style="height:320px"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line shorter"></div></div></div>
+    <div class="skeleton-card" style="height:320px"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line shorter"></div></div></div>
+    <div class="skeleton-card" style="height:320px"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line shorter"></div></div></div>
+    <div class="skeleton-card" style="height:320px"><div class="skeleton-img"></div><div class="skeleton-body"><div class="skeleton-line"></div><div class="skeleton-line short"></div><div class="skeleton-line shorter"></div></div></div>
+  </div>
+  <!-- Product Grid -->
+  <div id="grid" style="display:none"></div>
+  <!-- State (error/empty) -->
+  <div id="stateBox" class="state-box" style="display:none"></div>
+</div>
+
+
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<footer>
+  <span>Watercolor.LK</span> — Powered by ERP Pro &nbsp;|&nbsp; All prices in LKR &nbsp;|&nbsp; Sri Lanka
+</footer>
+
+<script>
+  // ── Proxy URL (same domain, no CORS) ──
+  const PROXY = 'erp-proxy.php';
+  const DEFAULT_IMG = 'https://erppro.lk/public/img/default.png';
+  const PLACEHOLDER = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300" viewBox="0 0 300 300"><rect width="300" height="300" fill="#f0ebff"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-size="72" font-family="serif">🎨</text></svg>`);
+
+  let allProducts = [];
+  let filtered    = [];
+  let activeFilter = 'all';
+
+  // ── INIT ──
+  async function init() {
+    try {
+      const products = await fetchProducts();
+      allProducts = products;
+      filtered = [...allProducts];
+      renderGrid(filtered);
+    } catch(e) {
+      showError(e.message);
+    }
+  }
+
+  // ── FETCH PRODUCTS via proxy ──
+  async function fetchProducts() {
+    const res = await fetch(`${PROXY}?action=products&per_page=200`);
+    if (!res.ok) throw new Error(`Proxy error ${res.status} — make sure erp-proxy.php is uploaded to the same folder.`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error || 'Unknown proxy error');
+    return data.products.map(p => ({
+      id:          p.id,
+      name:        p.name,
+      sku:         p.sku || '—',
+      price:       p.price,
+      image:       (p.image_url && !p.image_url.includes('default.png')) ? p.image_url : null,
+      description: p.description || '',
+      category:    p.category || '',
+      brand:       p.brand || '',
+      unit:        p.unit || 'Pc',
+      weight:      p.weight || null,
+      stock:       p.stock,
+      type:        p.type || 'single',
+    }));
+  }
+
+  // ── RENDER GRID ──
+  function renderGrid(products) {
+    document.getElementById('skeleton').style.display = 'none';
+    const grid = document.getElementById('grid');
+    const stateBox = document.getElementById('stateBox');
+
+    document.getElementById('productCount').textContent = allProducts.length;
+    document.getElementById('resultsInfo').textContent = `Showing ${products.length} of ${allProducts.length} products`;
+
+    if (products.length === 0) {
+      grid.style.display = 'none';
+      stateBox.style.display = 'block';
+      stateBox.innerHTML = `<div class="icon">🔍</div><h3>No products found</h3><p>Try a different search term or filter.</p>`;
+      return;
+    }
+
+    stateBox.style.display = 'none';
+    grid.style.display = 'grid';
+    grid.innerHTML = products.map(p => cardHTML(p)).join('');
+  }
+
+  function stockInfo(qty) {
+    if (qty <= 0) return { label: 'Out of Stock', cls: 'out', badgeCls: 'badge-out' };
+    if (qty <= 3)  return { label: `Only ${qty} left`, cls: 'low', badgeCls: 'badge-low' };
+    return { label: `${qty} in stock`, cls: 'ok', badgeCls: 'badge-instock' };
+  }
+
+  function cardHTML(p) {
+    const si = stockInfo(p.stock);
+    const imgSrc = p.image || PLACEHOLDER;
+    const priceStr = p.price > 0 ? p.price.toLocaleString('en-LK', {minimumFractionDigits:2, maximumFractionDigits:2}) : 'N/A';
+    return `
+      <div class="pcard" onclick="window.location='product.html?id=${p.id}'">
+        <div class="pcard-img-wrap">
+          <img class="pcard-img" src="${imgSrc}" alt="${escHtml(p.name)}" loading="lazy" onerror="this.src='${PLACEHOLDER}'"/>
+          <span class="pcard-badge ${si.badgeCls}">${si.label}</span>
+          <button class="pcard-wishlist" onclick="event.stopPropagation();toast('❤️ Added to wishlist')">♥</button>
+        </div>
+        <div class="pcard-body">
+          <div class="pcard-name">${escHtml(p.name)}</div>
+          <div class="pcard-sku">SKU: ${escHtml(p.sku)}</div>
+          <div class="pcard-price-row">
+            <span class="pcard-currency">LKR</span>
+            <span class="pcard-price">${priceStr}</span>
+          </div>
+          <div class="pcard-stock ${si.cls}">${si.label}</div>
+        </div>
+        <div class="pcard-footer">
+          <button class="btn-add" ${p.stock <= 0 ? 'disabled' : ''} onclick="event.stopPropagation();addToCart('${escHtml(p.name)}')">
+            ${p.stock <= 0 ? 'Out of Stock' : '🛒 Add to Cart'}
+          </button>
+        </div>
+      </div>`;
+  }
+
+
+
+  // ── SEARCH / FILTER / SORT ──
+  function filterProducts() {
+    const q = document.getElementById('searchInput').value.toLowerCase().trim();
+    filtered = allProducts.filter(p => {
+      const matchSearch = !q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q));
+      const matchFilter =
+        activeFilter === 'all' ? true :
+        activeFilter === 'instock' ? p.stock > 3 :
+        activeFilter === 'low'     ? (p.stock > 0 && p.stock <= 3) :
+        activeFilter === 'out'     ? p.stock <= 0 : true;
+      return matchSearch && matchFilter;
+    });
+    applySortToFiltered();
+    renderGrid(filtered);
+  }
+
+  function setFilter(f, btn) {
+    activeFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterProducts();
+  }
+
+  function sortProducts() { applySortToFiltered(); renderGrid(filtered); }
+
+  function applySortToFiltered() {
+    const s = document.getElementById('sortSelect').value;
+    if (s === 'price-asc')   filtered.sort((a,b) => a.price - b.price);
+    if (s === 'price-desc')  filtered.sort((a,b) => b.price - a.price);
+    if (s === 'name-asc')    filtered.sort((a,b) => a.name.localeCompare(b.name));
+    if (s === 'stock-desc')  filtered.sort((a,b) => b.stock - a.stock);
+    if (s === 'default')     filtered.sort((a,b) => a.id - b.id);
+  }
+
+  // ── CART / TOAST ──
+  function addToCart(name) { toast(`🛒 "${name.substring(0,30)}…" added to cart`); }
+
+  function toast(msg) {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 2800);
+  }
+
+  // ── ERROR STATE ──
+  function showError(msg) {
+    document.getElementById('skeleton').style.display = 'none';
+    document.getElementById('grid').style.display = 'none';
+    const stateBox = document.getElementById('stateBox');
+    stateBox.style.display = 'block';
+    stateBox.innerHTML = `
+      <div class="icon">⚠️</div>
+      <h3>Could not load products</h3>
+      <p>${escHtml(msg)}<br><br>
+      Make sure <strong>erp-proxy.php</strong> is uploaded to the same folder as this HTML file on your server.<br>
+      The proxy handles authentication and API calls server-side to avoid CORS issues.</p>`;
+  }
+
+  function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  init();
+</script>
+</body>
+</html>
