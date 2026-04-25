@@ -6,13 +6,20 @@
 deployment:
   # Include only necessary files for the reviews importer
   include:
+    # Core application files
+    - index.php
+    - product.php
+    - api/
+    - assets/
+
+    # Config and source code
+    - config/app.php
+    - src/
+
     # Core importer directory - all files
     - importer/
     
-    # Database repository
-    - src/Repositories/GoogleReviewRepository.php
-    
-    # Updated bootstrap and schema
+    # Bootstrap and schema
     - bootstrap.php
     - schema.sql
     
@@ -32,9 +39,6 @@ deployment:
     
     # WordPress plugin - unrelated
     - wp-reviews-plugin-for-google/
-    
-    # Unrelated images
-    - assets/images/
     
     # Git files
     - .git/

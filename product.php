@@ -121,7 +121,7 @@ $bestSellers = $product ? $repo->listBestSellersByCategory($categoryName, (int)$
 $dbReviews = [];
 try {
     $reviewRepository = new Repositories\GoogleReviewRepository(appDb());
-    $dbReviews = $reviewRepository->getByMinRating(4.0, 10); // 4+ stars, max 10
+    $dbReviews = $reviewRepository->getByMinRating(4.0, 20); // 4+ stars, max 20
 } catch (Exception $e) {
     // Reviews table may not exist yet or database error - silently ignore
     $dbReviews = [];
@@ -137,35 +137,75 @@ $buyersCount = max((int)($reviewSummary['count'] ?? 0), 382);
 $soldCount = max($buyersCount * 2 + 54, 1260);
 
 $reviewItems = [];
-foreach ((array)$reviewSummary['reviews'] as $item) {
-    $reviewItems[] = [
-        'author' => $item['author'] !== '' ? $item['author'] : 'Verified Buyer',
-        'rating' => max(1, min(5, (float)($item['rating'] ?? 5))),
-        'text' => $item['text'] !== '' ? $item['text'] : 'Excellent quality and fast delivery. Will order again.',
-        'author_url' => (string)($item['author_url'] ?? ''),
-        'relative_time' => (string)($item['relative_time'] ?? '1 month ago'),
-        'profile_photo_url' => (string)($item['profile_photo_url'] ?? ''),
-    ];
-}
-if (count($reviewItems) === 0) {
-    $reviewItems = [
-        [
-            'author' => 'Verified Buyer',
-            'rating' => 5,
-            'text' => 'Superb quality and exactly as shown. Delivery was smooth and on time.',
-            'author_url' => '',
-            'relative_time' => '1 month ago',
-            'profile_photo_url' => '',
-        ],
-        [
-            'author' => 'Returning Customer',
-            'rating' => 5,
-            'text' => 'Professional packaging and genuine products. Highly recommend this shop.',
-            'author_url' => '',
-            'relative_time' => '1 month ago',
-            'profile_photo_url' => '',
-        ],
-    ];
+$isDbReviewFeed = count($dbReviews) > 0;
+
+if ($isDbReviewFeed) {
+    $ratingTotal = 0.0;
+    foreach ($dbReviews as $dbReview) {
+        $ratingTotal += (float)($dbReview['rating'] ?? 0);
+    }
+
+    $buyersCount = count($dbReviews);
+    $ratingValue = round($ratingTotal / max(1, $buyersCount), 1);
+    $soldCount = max($buyersCount * 2 + 54, 1260);
+
+    foreach ($dbReviews as $item) {
+        $localPhoto = trim((string)($item['profile_picture_local_path'] ?? ''));
+        $remotePhoto = trim((string)($item['profile_picture_remote_url'] ?? ''));
+        $displayDate = 'Recently';
+        if (!empty($item['review_date'])) {
+            $ts = strtotime((string)$item['review_date']);
+            if ($ts !== false) {
+                $displayDate = date('M d, Y', $ts);
+            }
+        }
+
+        $reviewItems[] = [
+            'author' => trim((string)($item['author'] ?? '')) !== '' ? (string)$item['author'] : 'Verified Buyer',
+            'rating' => max(1, min(5, (float)($item['rating'] ?? 5))),
+            'text' => trim((string)($item['review_text'] ?? '')) !== '' ? (string)$item['review_text'] : 'Excellent quality and fast delivery. Will order again.',
+            'author_url' => $googleProfileUrl,
+            'relative_time' => $displayDate,
+            'profile_photo_url' => $localPhoto !== '' ? $localPhoto : ($remotePhoto !== '' ? $remotePhoto : 'assets/images/brand/favicon-watercolorlk.webp'),
+            'fallback_photo_url' => $remotePhoto !== '' ? $remotePhoto : 'assets/images/brand/favicon-watercolorlk.webp',
+        ];
+    }
+} else {
+    foreach ((array)$reviewSummary['reviews'] as $item) {
+        $photo = (string)($item['profile_photo_url'] ?? '');
+        $reviewItems[] = [
+            'author' => $item['author'] !== '' ? $item['author'] : 'Verified Buyer',
+            'rating' => max(1, min(5, (float)($item['rating'] ?? 5))),
+            'text' => $item['text'] !== '' ? $item['text'] : 'Excellent quality and fast delivery. Will order again.',
+            'author_url' => (string)($item['author_url'] ?? ''),
+            'relative_time' => (string)($item['relative_time'] ?? '1 month ago'),
+            'profile_photo_url' => $photo !== '' ? $photo : 'assets/images/brand/favicon-watercolorlk.webp',
+            'fallback_photo_url' => 'assets/images/brand/favicon-watercolorlk.webp',
+        ];
+    }
+
+    if (count($reviewItems) === 0) {
+        $reviewItems = [
+            [
+                'author' => 'Verified Buyer',
+                'rating' => 5,
+                'text' => 'Superb quality and exactly as shown. Delivery was smooth and on time.',
+                'author_url' => '',
+                'relative_time' => '1 month ago',
+                'profile_photo_url' => 'assets/images/brand/favicon-watercolorlk.webp',
+                'fallback_photo_url' => 'assets/images/brand/favicon-watercolorlk.webp',
+            ],
+            [
+                'author' => 'Returning Customer',
+                'rating' => 5,
+                'text' => 'Professional packaging and genuine products. Highly recommend this shop.',
+                'author_url' => '',
+                'relative_time' => '1 month ago',
+                'profile_photo_url' => 'assets/images/brand/favicon-watercolorlk.webp',
+                'fallback_photo_url' => 'assets/images/brand/favicon-watercolorlk.webp',
+            ],
+        ];
+    }
 }
 
 $searchSeed = trim((string)($_GET['q'] ?? ''));
@@ -818,14 +858,14 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                             </div>
                         </div>
                     </div>
-                    <?php if (($reviewSummary['source'] ?? 'fallback') !== 'google'): ?>
+                    <?php if (!$isDbReviewFeed && ($reviewSummary['source'] ?? 'fallback') !== 'google'): ?>
                         <div style="margin:2px 0 10px;color:#a44d05;font-size:.86rem;">Live Google reviews are not loading yet (<?= htmlspecialchars((string)($reviewSummary['status'] ?? 'UNKNOWN')) ?>).</div>
                     <?php endif; ?>
                     <div class="review-grid">
                         <?php foreach ($reviewItems as $review): ?>
                             <article class="review">
                                 <div class="review-top">
-                                    <img class="review-avatar" src="<?= htmlspecialchars((string)($review['profile_photo_url'] !== '' ? $review['profile_photo_url'] : 'assets/images/brand/favicon-watercolorlk.webp')) ?>" alt="reviewer">
+                                    <img class="review-avatar" src="<?= htmlspecialchars((string)$review['profile_photo_url']) ?>" alt="reviewer" onerror="this.onerror=null;this.src='<?= htmlspecialchars((string)$review['fallback_photo_url']) ?>';">
                                     <div class="review-meta">
                                         <a class="review-author" href="<?= htmlspecialchars((string)($review['author_url'] ?: $googleProfileUrl)) ?>" target="_blank" rel="noopener">
                                             <span class="name"><?= htmlspecialchars((string)$review['author']) ?></span>
@@ -834,7 +874,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                                         <div class="review-time"><?= htmlspecialchars((string)($review['relative_time'] ?: '1 month ago')) ?></div>
                                     </div>
                                 </div>
-                                <div class="r-stars"><span><?= str_repeat('★', (int)round((float)$review['rating'])) ?></span><img class="verified" src="assets/images/verification icon.png" alt="Verified"></div>
+                                <div class="r-stars"><span><?= str_repeat('★', (int)round((float)$review['rating'])) ?></span><img class="verified" src="assets/images/brand/verified-check.svg" alt="Verified"></div>
                                 <?php $text = (string)$review['text']; $isLong = textLength($text) > 140; ?>
                                 <p class="<?= $isLong ? 'truncate' : '' ?>" data-long="<?= $isLong ? '1' : '0' ?>"><?= htmlspecialchars($text) ?></p>
                                 <?php if ($isLong): ?>
@@ -845,37 +885,6 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                     </div>
                     <a class="review-link" href="<?= htmlspecialchars($googleProfileUrl) ?>" target="_blank" rel="noopener">See more reviews</a>
                 </div>
-
-                <?php if (count($dbReviews) > 0): ?>
-                <div class="module" style="margin-top:16px;">
-                    <div class="reviews-head"><h2>📌 Recent Reviews from Customers</h2></div>
-                    <div class="review-grid">
-                        <?php foreach ($dbReviews as $review): 
-                            $stars = (int)round((float)($review['rating'] ?? 5));
-                            $reviewText = (string)($review['review_text'] ?? '');
-                            $isLongReview = textLength($reviewText) > 140;
-                        ?>
-                            <article class="review">
-                                <div class="review-top">
-                                    <img class="review-avatar" src="<?= htmlspecialchars((string)($review['profile_picture_local_path'] ?: 'assets/images/brand/favicon-watercolorlk.webp')) ?>" alt="reviewer" onerror="this.src='assets/images/brand/favicon-watercolorlk.webp'">
-                                    <div class="review-meta">
-                                        <a class="review-author" href="#" onclick="return false;">
-                                            <span class="name"><?= htmlspecialchars((string)($review['author'] ?: 'Customer')) ?></span>
-                                            <img class="g-icon" src="assets/images/google icon for go near user name.svg" alt="Google">
-                                        </a>
-                                        <div class="review-time"><?= htmlspecialchars((string)($review['review_date'] ? date('M d, Y', strtotime((string)$review['review_date'])) : 'Recently')) ?></div>
-                                    </div>
-                                </div>
-                                <div class="r-stars"><span><?= str_repeat('★', max(1, min(5, $stars))) ?></span><img class="verified" src="assets/images/verification icon.png" alt="Verified"></div>
-                                <p class="<?= $isLongReview ? 'truncate' : '' ?>"><?= htmlspecialchars($reviewText) ?></p>
-                                <?php if ($isLongReview): ?>
-                                    <a class="read-more" href="#" onclick="toggleReviewText(this); return false;">Read more</a>
-                                <?php endif; ?>
-                            </article>
-                        <?php endforeach; ?>
-                    </div>
-                </div>
-                <?php endif; ?>
 
                 <div class="module" style="margin-top:16px;">
                     <div class="reviews-head"><h2>Product details</h2></div>
