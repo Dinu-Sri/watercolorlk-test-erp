@@ -11,7 +11,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 try {
     $q = trim((string)($_GET['q'] ?? ''));
-    if (strlen($q) < 2) {
+    if (strlen($q) < 1) {
         JsonResponse::send(['success' => true, 'suggestions' => []]);
         exit;
     }

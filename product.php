@@ -7,6 +7,7 @@ require_once __DIR__ . '/bootstrap.php';
 $erpId = (int)($_GET['id'] ?? 0);
 $repo = new ProductRepository(appDb());
 $product = $erpId > 0 ? $repo->getByErpId($erpId) : null;
+$stock = $product ? (float)$product['stock_qty'] : 0;
 ?>
 <!doctype html>
 <html lang="en">
@@ -15,48 +16,177 @@ $product = $erpId > 0 ? $repo->getByErpId($erpId) : null;
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title><?= $product ? htmlspecialchars((string)$product['name']) : 'Product not found' ?> | Watercolor.LK</title>
     <link rel="icon" type="image/webp" href="assets/images/brand/favicon-watercolorlk.webp">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
-        body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: #f6f4ef; color: #10233f; }
-        .wrap { max-width: 1000px; margin: 0 auto; padding: 20px; }
-        .layout { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .img { width: 100%; border-radius: 14px; border: 1px solid #e6decd; background: #fff; }
-        .box { background: #fff; border: 1px solid #e6decd; border-radius: 14px; padding: 16px; }
-        .price { color: #7a4a00; font-size: 24px; font-weight: 800; }
-        input, textarea, button { width: 100%; box-sizing: border-box; padding: 10px; border-radius: 10px; border: 1px solid #d7c8a5; margin-top: 10px; }
-        button { background: #10233f; color: #fff; border: 0; cursor: pointer; font-weight: 700; }
-        #orderResult { margin-top: 10px; font-size: 14px; }
+        :root {
+            --brand-navy: #1b2d4f;
+            --brand-navy-deep: #10203a;
+            --paper: #faf8f5;
+            --line: #e7ddd2;
+            --text: #1a1a1a;
+            --muted: #6b6b6b;
+            --amber: #e8760a;
+            --danger: #c0392b;
+            --success: #2d7a4f;
+            --shadow-sm: 0 10px 24px rgba(17, 31, 56, 0.08);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background:
+                radial-gradient(circle at top left, rgba(196, 112, 90, .15), transparent 32%),
+                radial-gradient(circle at top right, rgba(232, 118, 10, .08), transparent 28%),
+                linear-gradient(180deg, #fffdfa 0%, var(--paper) 42%, #f5eee6 100%);
+            color: var(--text);
+            font: 400 17px/1.7 'Source Sans 3', 'Segoe UI', sans-serif;
+        }
+        .wrap { width: min(calc(100% - 32px), 1180px); margin: 0 auto; padding: 22px 0 36px; }
+        .back {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            color: var(--brand-navy);
+            font: 700 13px/1 'Montserrat', sans-serif;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+            text-decoration: none;
+        }
+        .layout {
+            display: grid;
+            grid-template-columns: 1.1fr .9fr;
+            gap: 20px;
+            margin-top: 14px;
+        }
+        .gallery,
+        .box {
+            background: rgba(255, 255, 255, .9);
+            border: 1px solid var(--line);
+            border-radius: 24px;
+            padding: 18px;
+            box-shadow: var(--shadow-sm);
+        }
+        .img {
+            width: 100%;
+            border-radius: 18px;
+            border: 1px solid #e8decd;
+            background: #fff;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+        }
+        .brand { color: #8f4d39; font: 700 12px/1 'Montserrat', sans-serif; letter-spacing: .12em; text-transform: uppercase; }
+        h1 {
+            margin: 8px 0;
+            color: var(--brand-navy-deep);
+            font: 700 clamp(1.7rem, 3vw, 2.4rem)/1.12 'Playfair Display', serif;
+        }
+        .price {
+            color: var(--brand-navy);
+            font: 700 2rem/1.1 'Source Sans 3', sans-serif;
+        }
+        .stock {
+            margin: 8px 0 12px;
+            font: 700 13px/1 'Montserrat', sans-serif;
+            letter-spacing: .08em;
+            text-transform: uppercase;
+        }
+        .stock.ok { color: var(--success); }
+        .stock.low { color: var(--danger); }
+        .desc {
+            margin: 0 0 12px;
+            color: #313949;
+            font: 500 16px/1.65 'Source Sans 3', sans-serif;
+        }
+        .badge {
+            display: inline-block;
+            margin-bottom: 9px;
+            font: 700 11px/1 'Montserrat', sans-serif;
+            background: rgba(27, 45, 79, .1);
+            color: var(--brand-navy);
+            border-radius: 999px;
+            padding: 6px 10px;
+            text-transform: uppercase;
+            letter-spacing: .09em;
+        }
+        .order-title {
+            margin: 14px 0 4px;
+            color: var(--brand-navy);
+            font: 700 16px/1.2 'Montserrat', sans-serif;
+            letter-spacing: .04em;
+            text-transform: uppercase;
+        }
+        .field {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 11px;
+            border-radius: 12px;
+            border: 1px solid #d5c8b4;
+            margin-top: 10px;
+            font: 500 15px/1.3 'Source Sans 3', sans-serif;
+            color: #222b3f;
+            background: #fff;
+        }
+        .button {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            border-radius: 12px;
+            margin-top: 12px;
+            border: 0;
+            cursor: pointer;
+            color: #fff;
+            background: linear-gradient(180deg, #e8760a, #c4600a);
+            font: 700 16px/1.2 'Source Sans 3', sans-serif;
+        }
+        #orderResult { margin-top: 10px; font: 600 14px/1.4 'Source Sans 3', sans-serif; }
+        .not-found {
+            margin-top: 12px;
+            background: rgba(255, 255, 255, .9);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 16px;
+            color: #5f6b80;
+        }
         @media (max-width: 820px) {
             .layout { grid-template-columns: 1fr; }
+            .wrap { width: min(calc(100% - 24px), 1180px); }
         }
     </style>
 </head>
 <body>
 <div class="wrap">
-    <a href="index.php">&larr; Back to shop</a>
+    <a class="back" href="index.php">&larr; Back to shop</a>
 
     <?php if (!$product): ?>
-        <div class="box" style="margin-top:12px">Product not found in local catalog. Run sync first.</div>
+        <div class="not-found">Product not found in local catalog. Run sync first.</div>
     <?php else: ?>
-        <div class="layout" style="margin-top:12px">
-            <img class="img" src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$product['name']) ?>">
+        <div class="layout">
+            <div class="gallery">
+                <img class="img" src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$product['name']) ?>">
+            </div>
             <div class="box">
-                <h1 style="margin:0 0 8px"><?= htmlspecialchars((string)$product['name']) ?></h1>
+                <?php if (!empty($product['badge'])): ?>
+                    <span class="badge"><?= htmlspecialchars((string)$product['badge']) ?></span>
+                <?php endif; ?>
+                <div class="brand">Watercolor.LK Curated</div>
+                <h1><?= htmlspecialchars((string)$product['name']) ?></h1>
                 <div class="price">LKR <?= number_format((float)$product['price'], 2) ?></div>
-                <p><?= nl2br(htmlspecialchars((string)$product['description'])) ?></p>
-                <p><strong>Stock:</strong> <?= (float)$product['stock_qty'] ?></p>
+                <div class="stock <?= $stock > 2 ? 'ok' : 'low' ?>"><?= $stock > 2 ? 'In stock' : 'Limited stock' ?>: <?= $stock ?></div>
+                <p class="desc"><?= nl2br(htmlspecialchars((string)$product['description'])) ?></p>
 
-                <h3 style="margin-top:20px">Quick Order</h3>
-                <input id="customer_name" placeholder="Full name">
-                <input id="customer_phone" placeholder="Phone number">
-                <input id="customer_email" placeholder="Email (optional)">
-                <select id="payment_method" style="width:100%;padding:10px;border-radius:10px;border:1px solid #d7c8a5;margin-top:10px">
+                <h3 class="order-title">Quick Order</h3>
+                <input id="customer_name" class="field" placeholder="Full name">
+                <input id="customer_phone" class="field" placeholder="Phone number">
+                <input id="customer_email" class="field" placeholder="Email (optional)">
+                <select id="payment_method" class="field">
                     <option value="payhere">PayHere</option>
                     <option value="bank_transfer">Bank transfer</option>
                     <option value="whatsapp">WhatsApp assisted</option>
                 </select>
-                <textarea id="notes" placeholder="Notes"></textarea>
-                <input id="qty" type="number" value="1" min="1" step="1">
-                <button onclick="submitOrder()">Place Order</button>
+                <textarea id="notes" class="field" placeholder="Notes"></textarea>
+                <input id="qty" class="field" type="number" value="1" min="1" step="1">
+                <button class="button" onclick="submitOrder()">Place Order</button>
                 <div id="orderResult"></div>
             </div>
         </div>
