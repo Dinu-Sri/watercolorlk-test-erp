@@ -21,13 +21,8 @@ deployment:
     # Core importer directory - all files
     - importer/
     
-    # Bootstrap and schema
+    # Bootstrap
     - bootstrap.php
-    - schema.sql
-    
-    # Documentation
-    - README.md
-    - .gitignore
 
   # Exclude files and directories that should NOT be deployed
   exclude:
