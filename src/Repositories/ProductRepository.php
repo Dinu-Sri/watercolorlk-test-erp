@@ -8,6 +8,43 @@ final class ProductRepository
     {
     }
 
+    private function buildSeoSlug(?string $slug, ?string $name, int $erpId): string
+    {
+        $candidate = trim((string)$slug);
+        if ($candidate === '' || preg_match('/^product-\d+$/i', $candidate) === 1) {
+            $candidate = (string)$name;
+        }
+
+        $candidate = trim($candidate);
+        if ($candidate === '') {
+            return 'product-' . $erpId;
+        }
+
+        if (function_exists('iconv')) {
+            $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $candidate);
+            if (is_string($ascii) && $ascii !== '') {
+                $candidate = $ascii;
+            }
+        }
+
+        $slugified = strtolower($candidate);
+        $slugified = preg_replace('/[^a-z0-9]+/i', '-', $slugified) ?? '';
+        $slugified = trim($slugified, '-');
+
+        return $slugified !== '' ? $slugified : ('product-' . $erpId);
+    }
+
+    private function hydrateSeoSlug(array $row): array
+    {
+        $row['slug'] = $this->buildSeoSlug(
+            isset($row['slug']) ? (string)$row['slug'] : '',
+            isset($row['display_name']) ? (string)$row['display_name'] : ((string)($row['name'] ?? '')),
+            (int)($row['erp_product_id'] ?? 0)
+        );
+
+        return $row;
+    }
+
     public function upsertFromErp(array $product): void
     {
         $sql = <<<SQL
@@ -73,7 +110,8 @@ SQL;
         $stmt->bindValue(':q', '%' . $query . '%', PDO::PARAM_STR);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        return array_map(fn(array $row): array => $this->hydrateSeoSlug($row), $rows);
     }
 
     public function listProducts(string $query = '', int $limit = 24, int $offset = 0): array
@@ -117,7 +155,8 @@ SQL;
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
         $stmt->execute();
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        return array_map(fn(array $row): array => $this->hydrateSeoSlug($row), $rows);
     }
 
     public function getByErpId(int $erpProductId): ?array
@@ -141,7 +180,11 @@ SQL;
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['erp_product_id' => $erpProductId]);
         $row = $stmt->fetch();
-        return $row ?: null;
+        if (!$row) {
+            return null;
+        }
+
+        return $this->hydrateSeoSlug($row);
     }
 
     public function getBySlug(string $slug): ?array
@@ -160,13 +203,44 @@ SELECT p.id, p.erp_product_id, p.sku,
 FROM products p
 LEFT JOIN product_overrides po ON po.product_id = p.id
 WHERE p.is_active = 1
-  AND LOWER(COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id))) = LOWER(:slug)
+  AND LOWER(COALESCE(NULLIF(po.override_slug, ''), '')) = LOWER(:slug)
 LIMIT 1
 SQL;
         $stmt = $this->db->prepare($sql);
         $stmt->execute(['slug' => $slug]);
         $row = $stmt->fetch();
-        return $row ?: null;
+        if ($row) {
+            return $this->hydrateSeoSlug($row);
+        }
+
+        if (preg_match('/^product-(\d+)$/i', $slug, $legacy) === 1) {
+            return $this->getByErpId((int)$legacy[1]);
+        }
+
+        $normalizedSlug = $this->buildSeoSlug($slug, '', 0);
+        $matchSql = <<<SQL
+SELECT p.erp_product_id,
+       COALESCE(NULLIF(po.override_slug, ''), '') AS slug,
+       COALESCE(NULLIF(po.override_title, ''), p.name) AS display_name
+FROM products p
+LEFT JOIN product_overrides po ON po.product_id = p.id
+WHERE p.is_active = 1
+SQL;
+        $matchStmt = $this->db->query($matchSql);
+        $candidates = $matchStmt ? $matchStmt->fetchAll() : [];
+
+        foreach ($candidates as $candidate) {
+            $candidateSlug = $this->buildSeoSlug(
+                (string)($candidate['slug'] ?? ''),
+                (string)($candidate['display_name'] ?? ''),
+                (int)($candidate['erp_product_id'] ?? 0)
+            );
+            if ($candidateSlug === $normalizedSlug) {
+                return $this->getByErpId((int)$candidate['erp_product_id']);
+            }
+        }
+
+        return null;
     }
 
     public function listBestSellersByCategory(string $categoryName, int $excludeErpId, int $limit = 4): array
@@ -193,7 +267,8 @@ SQL;
         $stmt->bindValue(':category_name', $categoryName, PDO::PARAM_STR);
         $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
         $stmt->execute();
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+        return array_map(fn(array $row): array => $this->hydrateSeoSlug($row), $rows);
     }
 
     public function saveOverride(int $productId, array $override): void

@@ -29,14 +29,63 @@ function textLength(string $value): int
     return strlen($value);
 }
 
-function productUrl(string $slug, int $erpId): string
+function slugifyProductTitle(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+
+    if (function_exists('iconv')) {
+        $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+        if (is_string($ascii) && $ascii !== '') {
+            $value = $ascii;
+        }
+    }
+
+    $value = strtolower($value);
+    $value = preg_replace('/[^a-z0-9]+/i', '-', $value) ?? '';
+    return trim($value, '-');
+}
+
+function productUrl(string $slug, string $name, int $erpId): string
 {
     $slug = trim($slug);
+    if ($slug === '' || preg_match('/^product-\d+$/i', $slug) === 1) {
+        $slug = slugifyProductTitle($name);
+    }
+
     if ($slug !== '') {
         return 'product/' . rawurlencode($slug);
     }
 
-    return 'product.php?id=' . $erpId;
+    return 'product/' . rawurlencode('product-' . $erpId);
+}
+
+function normalizeReviewText(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+
+    $looksMojibake = preg_match('/(?:Ã.|Â.|â.|à.){2,}/u', $value) === 1;
+    if ($looksMojibake && function_exists('mb_convert_encoding')) {
+        $fixed = @mb_convert_encoding($value, 'UTF-8', 'Windows-1252');
+        if (is_string($fixed) && $fixed !== '' && preg_match('//u', $fixed) === 1) {
+            $value = $fixed;
+        }
+    }
+
+    if (preg_match('//u', $value) !== 1 && function_exists('mb_convert_encoding')) {
+        $fallback = @mb_convert_encoding($value, 'UTF-8', 'UTF-8,Windows-1252,ISO-8859-1');
+        if (is_string($fallback) && $fallback !== '') {
+            $value = $fallback;
+        }
+    }
+
+    $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+    return trim($value);
 }
 
 function fetchGoogleReviewSummary(): array
@@ -135,7 +184,7 @@ if (!$product && $erpId > 0) {
 }
 
 if ($product && $slug === '' && $erpId > 0 && !headers_sent()) {
-    header('Location: ' . productUrl((string)($product['slug'] ?? ''), (int)$product['erp_product_id']), true, 301);
+    header('Location: ' . productUrl((string)($product['slug'] ?? ''), (string)($product['name'] ?? ''), (int)$product['erp_product_id']), true, 301);
     exit;
 }
 
@@ -198,7 +247,7 @@ if ($isDbReviewFeed) {
         $reviewItems[] = [
             'author' => trim((string)($item['author'] ?? '')) !== '' ? (string)$item['author'] : 'Verified Buyer',
             'rating' => max(1, min(5, (float)($item['rating'] ?? 5))),
-            'text' => trim((string)($item['review_text'] ?? '')) !== '' ? (string)$item['review_text'] : 'Excellent quality and fast delivery. Will order again.',
+            'text' => trim((string)($item['review_text'] ?? '')) !== '' ? normalizeReviewText((string)$item['review_text']) : 'Excellent quality and fast delivery. Will order again.',
             'author_url' => $googleProfileUrl,
             'relative_time' => $displayDate,
             'profile_photo_url' => $localPhoto !== '' ? $localPhoto : ($remotePhoto !== '' ? $remotePhoto : 'assets/images/brand/favicon-watercolorlk.webp'),
@@ -211,7 +260,7 @@ if ($isDbReviewFeed) {
         $reviewItems[] = [
             'author' => $item['author'] !== '' ? $item['author'] : 'Verified Buyer',
             'rating' => max(1, min(5, (float)($item['rating'] ?? 5))),
-            'text' => $item['text'] !== '' ? $item['text'] : 'Excellent quality and fast delivery. Will order again.',
+            'text' => $item['text'] !== '' ? normalizeReviewText((string)$item['text']) : 'Excellent quality and fast delivery. Will order again.',
             'author_url' => (string)($item['author_url'] ?? ''),
             'relative_time' => (string)($item['relative_time'] ?? '1 month ago'),
             'profile_photo_url' => $photo !== '' ? $photo : 'assets/images/brand/favicon-watercolorlk.webp',
@@ -1121,7 +1170,7 @@ if ($baseHref === '') {
                 <div class="module" style="grid-column:1 / -1;">More category products will appear after the next sync.</div>
             <?php else: ?>
                 <?php foreach ($bestSellers as $item): ?>
-                    <a class="best-card" href="<?= htmlspecialchars(productUrl((string)($item['slug'] ?? ''), (int)$item['erp_product_id'])) ?>">
+                    <a class="best-card" href="<?= htmlspecialchars(productUrl((string)($item['slug'] ?? ''), (string)($item['display_name'] ?? ''), (int)$item['erp_product_id'])) ?>">
                         <div class="best-media"><img src="<?= htmlspecialchars((string)($item['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$item['display_name']) ?>"></div>
                         <div class="best-body">
                             <h3 class="best-name"><?= htmlspecialchars((string)$item['display_name']) ?></h3>

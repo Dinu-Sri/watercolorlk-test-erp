@@ -15,6 +15,32 @@ class GoogleReviewRepository
         $this->pdo = $pdo;
     }
 
+    private function normalizeText(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $looksMojibake = preg_match('/(?:Ã.|Â.|â.|à.){2,}/u', $value) === 1;
+        if ($looksMojibake && function_exists('mb_convert_encoding')) {
+            $fixed = @mb_convert_encoding($value, 'UTF-8', 'Windows-1252');
+            if (is_string($fixed) && $fixed !== '' && preg_match('//u', $fixed) === 1) {
+                $value = $fixed;
+            }
+        }
+
+        if (preg_match('//u', $value) !== 1 && function_exists('mb_convert_encoding')) {
+            $fallback = @mb_convert_encoding($value, 'UTF-8', 'UTF-8,Windows-1252,ISO-8859-1');
+            if (is_string($fallback) && $fallback !== '') {
+                $value = $fallback;
+            }
+        }
+
+        $value = preg_replace('/\s+/u', ' ', $value) ?? $value;
+        return trim($value);
+    }
+
     /**
      * Upsert a review into the database.
      * 
@@ -77,12 +103,14 @@ class GoogleReviewRepository
         } else {
             $reviewText = $review['description'] ?? '';
         }
+        $reviewText = $this->normalizeText((string)$reviewText);
 
         // Extract owner response
         $ownerResponse = '';
         if (is_array($review['owner_responses'] ?? null) && isset($review['owner_responses']['en'])) {
             $ownerResponse = $review['owner_responses']['en']['text'] ?? '';
         }
+        $ownerResponse = $this->normalizeText((string)$ownerResponse);
 
         // Parse review date
         $reviewDate = null;

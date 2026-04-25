@@ -16,14 +16,37 @@ if ($baseHref === '') {
     $baseHref .= '/';
 }
 
-function productUrl(string $slug, int $erpId): string
+function slugifyProductTitle(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+
+    if (function_exists('iconv')) {
+        $ascii = @iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $value);
+        if (is_string($ascii) && $ascii !== '') {
+            $value = $ascii;
+        }
+    }
+
+    $value = strtolower($value);
+    $value = preg_replace('/[^a-z0-9]+/i', '-', $value) ?? '';
+    return trim($value, '-');
+}
+
+function productUrl(string $slug, string $name, int $erpId): string
 {
     $slug = trim($slug);
+    if ($slug === '' || preg_match('/^product-\d+$/i', $slug) === 1) {
+        $slug = slugifyProductTitle($name);
+    }
+
     if ($slug !== '') {
         return 'product/' . rawurlencode($slug);
     }
 
-    return 'product.php?id=' . $erpId;
+    return 'product/' . rawurlencode('product-' . $erpId);
 }
 ?>
 <!doctype html>
@@ -290,7 +313,7 @@ function productUrl(string $slug, int $erpId): string
     <section id="products">
         <div id="grid" class="grid">
         <?php foreach ($products as $product): ?>
-            <a class="card" href="<?= htmlspecialchars(productUrl((string)($product['slug'] ?? ''), (int)$product['erp_product_id'])) ?>">
+            <a class="card" href="<?= htmlspecialchars(productUrl((string)($product['slug'] ?? ''), (string)($product['display_name'] ?? $product['name'] ?? ''), (int)$product['erp_product_id'])) ?>">
                 <div class="media">
                     <div class="card-badges">
                         <?php if ((float)$product['stock_qty'] <= 0): ?>
@@ -442,11 +465,15 @@ function renderProducts(items) {
 }
 
 function buildProductUrl(item) {
-    const slug = String(item.slug || '').trim();
+    let slug = String(item.slug || '').trim();
+    if (!slug || /^product-\d+$/i.test(slug)) {
+        const source = String(item.display_name || item.name || '').trim().toLowerCase();
+        slug = source.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    }
     if (slug !== '') {
         return `product/${encodeURIComponent(slug)}`;
     }
-    return `product.php?id=${Number(item.erp_product_id || 0)}`;
+    return `product/${encodeURIComponent(`product-${Number(item.erp_product_id || 0)}`)}`;
 }
 
 function renderTopBadge(item) {
