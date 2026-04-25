@@ -73,6 +73,7 @@ function fetchGoogleReviewSummary(): array
             'rating' => (float)($review['rating'] ?? 5),
             'text' => trim((string)($review['text'] ?? '')),
             'time' => (int)($review['time'] ?? time()),
+            'author_url' => (string)($review['author_url'] ?? ''),
         ];
     }
 
@@ -98,13 +99,13 @@ $categoryName = $product ? (string)($product['category_name'] ?? '') : '';
 $bestSellers = $product ? $repo->listBestSellersByCategory($categoryName, (int)$product['erp_product_id'], 4) : [];
 
 $reviewSummary = fetchGoogleReviewSummary();
+$googleProfileUrl = trim((string)($reviewSummary['url'] ?? ''));
+if ($googleProfileUrl === '') {
+    $googleProfileUrl = 'https://share.google/ScPmVS3Pgq1UFu5M9';
+}
 $ratingValue = $reviewSummary['rating'] !== null ? (float)$reviewSummary['rating'] : 4.9;
 $buyersCount = max((int)($reviewSummary['count'] ?? 0), 382);
 $soldCount = max($buyersCount * 2 + 54, 1260);
-
-$deliveryStart = addWorkingDays(new DateTimeImmutable('today'), 2);
-$deliveryEnd = addWorkingDays(new DateTimeImmutable('today'), 5);
-$deliveryRange = $deliveryStart->format('d M') . ' - ' . $deliveryEnd->format('d M');
 
 $reviewItems = [];
 foreach (array_slice((array)$reviewSummary['reviews'], 0, 2) as $item) {
@@ -112,6 +113,7 @@ foreach (array_slice((array)$reviewSummary['reviews'], 0, 2) as $item) {
         'author' => $item['author'] !== '' ? $item['author'] : 'Verified Buyer',
         'rating' => max(1, min(5, (float)($item['rating'] ?? 5))),
         'text' => $item['text'] !== '' ? $item['text'] : 'Excellent quality and fast delivery. Will order again.',
+        'author_url' => (string)($item['author_url'] ?? ''),
     ];
 }
 if (count($reviewItems) === 0) {
@@ -120,11 +122,13 @@ if (count($reviewItems) === 0) {
             'author' => 'Verified Buyer',
             'rating' => 5,
             'text' => 'Superb quality and exactly as shown. Delivery was smooth and on time.',
+            'author_url' => '',
         ],
         [
             'author' => 'Returning Customer',
             'rating' => 5,
             'text' => 'Professional packaging and genuine products. Highly recommend this shop.',
+            'author_url' => '',
         ],
     ];
 }
@@ -361,6 +365,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             grid-template-columns: 1fr 1fr;
             gap: 14px;
             margin-top: 14px;
+            align-items: start;
         }
         .qty-head,
         .mini-head {
@@ -401,13 +406,33 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
         .delivery-box {
             border: 1px solid var(--line);
             border-radius: 16px;
-            padding: 10px 12px;
+            padding: 12px;
             background: #fff;
             color: #304056;
             font-size: .88rem;
+            min-height: 74px;
+            display: flex;
+            align-items: center;
         }
-        .delivery-box strong { display: block; color: var(--brand-navy); margin-bottom: 4px; }
-        .delivery-box span { display: block; line-height: 1.35; }
+        .delivery-box strong { display: block; color: var(--brand-navy); margin: 0; }
+
+        .meta-inline {
+            margin-top: 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .meta-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            padding: 5px 9px;
+            background: #fff;
+            color: #3f4e69;
+            font: 700 .75rem/1 'Montserrat', sans-serif;
+        }
 
         .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
         .button {
@@ -454,28 +479,6 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
         .trust strong { display: block; color: var(--brand-navy); font: 700 .88rem/1.2 'Montserrat', sans-serif; }
         .trust span { display: block; color: var(--muted); font-size: .78rem; margin-top: 4px; }
 
-        .details-grid {
-            margin-top: 14px;
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0,1fr));
-            gap: 8px;
-        }
-        .detail {
-            border: 1px solid var(--line);
-            border-radius: 14px;
-            padding: 10px;
-            background: #fff;
-        }
-        .detail strong {
-            display: block;
-            color: #667084;
-            font: 700 .72rem/1 'Montserrat', sans-serif;
-            letter-spacing: .07em;
-            text-transform: uppercase;
-            margin-bottom: 6px;
-        }
-        .detail span { color: var(--brand-navy); font: 700 .9rem/1.2 'Source Sans 3', sans-serif; }
-
         .reviews-head {
             display: flex;
             align-items: center;
@@ -506,21 +509,48 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             border-radius: 50%;
             background: conic-gradient(#4285F4 0 25%, #34A853 25% 50%, #FBBC05 50% 75%, #EA4335 75% 100%);
         }
-        .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .review-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            max-height: 360px;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
         .review {
             border: 1px solid var(--line);
             border-radius: 16px;
             padding: 12px;
             background: #fff;
         }
-        .review strong { color: var(--brand-navy); font: 700 .92rem/1.2 'Montserrat', sans-serif; }
+        .review-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 2px;
+        }
+        .review-author {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--brand-navy);
+            font: 700 .92rem/1.2 'Montserrat', sans-serif;
+            text-decoration: none;
+        }
+        .g-icon {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: conic-gradient(#4285F4 0 25%, #34A853 25% 50%, #FBBC05 50% 75%, #EA4335 75% 100%);
+        }
         .review .r-stars { color: var(--gold); margin: 6px 0 4px; letter-spacing: .08em; }
         .review p { margin: 0; color: #495267; font-size: .9rem; line-height: 1.45; }
         .review-link {
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            margin-top: 12px;
+            margin-top: 10px;
             border-radius: 999px;
             border: 1px solid var(--line);
             padding: 9px 14px;
@@ -590,7 +620,6 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             .purchase-row { grid-template-columns: 1fr; }
             .trust-grid { grid-template-columns: 1fr; }
             .best-grid { grid-template-columns: 1fr; }
-            .details-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -640,6 +669,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                         <h2>Customer reviews</h2>
                         <span class="google-badge"><span class="google-dot"></span>Google reviews</span>
                     </div>
+                    <a class="review-link" href="<?= htmlspecialchars($googleProfileUrl) ?>" target="_blank" rel="noopener" style="margin-top:0;margin-bottom:10px;">View Google profile</a>
                     <div class="rating-row" style="margin:0 0 10px;">
                         <span class="stars">★★★★★</span>
                         <span><?= number_format($ratingValue, 1) ?> rating from <?= number_format($buyersCount) ?> buyers</span>
@@ -647,17 +677,23 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                     <div class="review-grid">
                         <?php foreach ($reviewItems as $review): ?>
                             <article class="review">
-                                <strong><?= htmlspecialchars((string)$review['author']) ?></strong>
+                                <div class="review-top">
+                                    <a class="review-author" href="<?= htmlspecialchars((string)($review['author_url'] ?: $googleProfileUrl)) ?>" target="_blank" rel="noopener">
+                                        <span class="g-icon"></span>
+                                        <span><?= htmlspecialchars((string)$review['author']) ?></span>
+                                    </a>
+                                </div>
                                 <div class="r-stars"><?= str_repeat('★', (int)round((float)$review['rating'])) ?></div>
                                 <p><?= htmlspecialchars((string)$review['text']) ?></p>
                             </article>
                         <?php endforeach; ?>
                     </div>
-                    <?php if ((string)$reviewSummary['url'] !== ''): ?>
-                        <a class="review-link" href="<?= htmlspecialchars((string)$reviewSummary['url']) ?>" target="_blank" rel="noopener">See more reviews</a>
-                    <?php else: ?>
-                        <a class="review-link" href="#" onclick="event.preventDefault();">See more reviews</a>
-                    <?php endif; ?>
+                    <a class="review-link" href="<?= htmlspecialchars($googleProfileUrl) ?>" target="_blank" rel="noopener">See more reviews</a>
+                </div>
+
+                <div class="module" style="margin-top:16px;">
+                    <div class="reviews-head"><h2>Product details</h2></div>
+                    <p style="margin:0;color:#4d586f;font-size:.94rem;line-height:1.65;"><?= nl2br(htmlspecialchars((string)$product['description'])) ?></p>
                 </div>
             </div>
 
@@ -696,10 +732,14 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                         <h3 class="mini-head">Delivery estimation</h3>
                         <div class="delivery-box">
                             <strong>2 to 5 working days</strong>
-                            <span><?= htmlspecialchars($deliveryRange) ?></span>
-                            <span>Island-wide delivery available.</span>
                         </div>
                     </div>
+                </div>
+
+                <div class="meta-inline">
+                    <span class="meta-pill">Brand: <?= htmlspecialchars((string)($product['brand_name'] ?: 'Watercolor.LK')) ?></span>
+                    <span class="meta-pill">Category: <?= htmlspecialchars((string)($product['category_name'] ?: 'Art Supplies')) ?></span>
+                    <span class="meta-pill">SKU: <?= htmlspecialchars((string)$product['sku']) ?></span>
                 </div>
 
                 <div class="actions">
@@ -718,17 +758,8 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                 <div class="trust-grid">
                     <div class="trust"><strong>Return & refund</strong><span>7-day support for valid issues</span></div>
                     <div class="trust"><strong>Secure checkout</strong><span>Encrypted payment processing</span></div>
-                    <div class="trust"><strong>Delivery support</strong><span>Tracked dispatch updates</span></div>
+                    <div class="trust"><strong>Delivery support</strong><span>Island-wide delivery available</span></div>
                 </div>
-
-                <div class="details-grid">
-                    <div class="detail"><strong>Brand</strong><span><?= htmlspecialchars((string)($product['brand_name'] ?: 'Watercolor.LK')) ?></span></div>
-                    <div class="detail"><strong>Category</strong><span><?= htmlspecialchars((string)($product['category_name'] ?: 'Art Supplies')) ?></span></div>
-                    <div class="detail"><strong>SKU</strong><span><?= htmlspecialchars((string)$product['sku']) ?></span></div>
-                    <div class="detail"><strong>Availability</strong><span><?= $isOutOfStock ? 'Out of stock' : 'In stock' ?></span></div>
-                </div>
-
-                <p style="margin:12px 0 0;color:#4d586f;font-size:.9rem;"><?= nl2br(htmlspecialchars((string)$product['description'])) ?></p>
                 <div id="orderResult"></div>
             </aside>
         </section>
