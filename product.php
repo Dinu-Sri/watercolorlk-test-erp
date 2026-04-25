@@ -37,7 +37,9 @@ function fetchGoogleReviewSummary(): array
             'count' => null,
             'url' => defined('GOOGLE_REVIEWS_URL') ? GOOGLE_REVIEWS_URL : '',
             'reviews' => [],
-            'source' => 'fallback',
+            'source' => 'missing-config',
+            'status' => 'MISSING_CONFIG',
+            'error_message' => '',
         ];
     }
 
@@ -60,6 +62,8 @@ function fetchGoogleReviewSummary(): array
             'url' => defined('GOOGLE_REVIEWS_URL') ? GOOGLE_REVIEWS_URL : '',
             'reviews' => [],
             'source' => 'fallback',
+            'status' => 'FETCH_FAILED',
+            'error_message' => 'Failed to fetch Place Details response',
         ];
     }
 
@@ -71,6 +75,8 @@ function fetchGoogleReviewSummary(): array
             'url' => defined('GOOGLE_REVIEWS_URL') ? GOOGLE_REVIEWS_URL : '',
             'reviews' => [],
             'source' => 'fallback',
+            'status' => (string)($decoded['status'] ?? 'INVALID_RESPONSE'),
+            'error_message' => (string)($decoded['error_message'] ?? 'Unknown Place Details error'),
         ];
     }
 
@@ -94,6 +100,8 @@ function fetchGoogleReviewSummary(): array
         'url' => (string)($result['url'] ?? (defined('GOOGLE_REVIEWS_URL') ? GOOGLE_REVIEWS_URL : '')),
         'reviews' => $reviews,
         'source' => 'google',
+        'status' => 'OK',
+        'error_message' => '',
     ];
 }
 
@@ -119,7 +127,7 @@ $buyersCount = max((int)($reviewSummary['count'] ?? 0), 382);
 $soldCount = max($buyersCount * 2 + 54, 1260);
 
 $reviewItems = [];
-foreach (array_slice((array)$reviewSummary['reviews'], 0, 8) as $item) {
+foreach ((array)$reviewSummary['reviews'] as $item) {
     $reviewItems[] = [
         'author' => $item['author'] !== '' ? $item['author'] : 'Verified Buyer',
         'rating' => max(1, min(5, (float)($item['rating'] ?? 5))),
@@ -498,8 +506,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
 
         .reviews-head {
             display: flex;
-            align-items: center;
-            justify-content: space-between;
+            align-items: flex-start;
             gap: 12px;
             margin-bottom: 10px;
         }
@@ -526,16 +533,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             border-radius: 50%;
             background: conic-gradient(#4285F4 0 25%, #34A853 25% 50%, #FBBC05 50% 75%, #EA4335 75% 100%);
         }
-        .review-summary {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 10px 12px;
-            background: #fff;
-            margin-bottom: 12px;
-        }
+        .reviews-intro { min-width: 0; }
         .profile-icon {
             width: 48px;
             height: 48px;
@@ -544,24 +542,31 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             object-fit: cover;
             background: #fff;
         }
-        .summary-text strong {
+        .reviews-intro h2 {
+            margin: 2px 0 4px;
+            color: var(--brand-navy-deep);
+            font: 700 1.9rem/1.12 'Playfair Display', serif;
+        }
+        .summary-text strong,
+        .based-text {
             display: block;
-            color: var(--brand-navy);
-            font: 700 .95rem/1.2 'Montserrat', sans-serif;
+            color: #4f5d79;
+            font: 600 .95rem/1.2 'Source Sans 3', sans-serif;
         }
         .summary-stars {
             display: flex;
             align-items: center;
             gap: 8px;
             color: #4f5e79;
-            font-size: .9rem;
-            margin-top: 3px;
+            font-size: 1.05rem;
+            margin-top: 2px;
         }
         .summary-stars .gold { color: #f5b400; letter-spacing: .08em; }
         .google-logo {
             height: 28px;
             width: auto;
-            margin-top: 6px;
+            margin-bottom: 4px;
+            display: block;
         }
         .review-grid {
             display: grid;
@@ -633,14 +638,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
         .verified {
             width: 15px;
             height: 15px;
-            border-radius: 50%;
-            background: #3b82f6;
-            color: #fff;
-            font-size: .66rem;
-            font-weight: 700;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+            object-fit: contain;
         }
         .review p {
             margin: 0;
@@ -781,18 +779,17 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
 
                 <div class="module" style="margin-top:16px;">
                     <div class="reviews-head">
-                        <h2>Customer reviews</h2>
-                        <span class="google-badge"><span class="google-dot"></span>Google reviews</span>
-                    </div>
-                    <div class="review-summary">
                         <img class="profile-icon" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK profile">
-                        <div class="summary-text">
-                            <strong>Watercolor.LK</strong>
-                            <div class="summary-stars"><span class="gold">★★★★★</span><span><?= number_format($ratingValue, 1) ?></span></div>
-                            <div style="color:#546079;font-size:.88rem;line-height:1.25;">Based on <?= number_format($buyersCount) ?> reviews</div>
+                        <div class="reviews-intro">
                             <img class="google-logo" src="assets/images/google full logo.svg" alt="Google">
+                            <h2>Customer reviews</h2>
+                            <div class="summary-stars"><span class="gold">★★★★★</span><span><?= number_format($ratingValue, 1) ?></span></div>
+                            <div class="based-text">Based on <?= number_format($buyersCount) ?> reviews</div>
                         </div>
                     </div>
+                    <?php if (($reviewSummary['source'] ?? 'fallback') !== 'google'): ?>
+                        <div style="margin:2px 0 10px;color:#a44d05;font-size:.86rem;">Live Google reviews are not loading yet (<?= htmlspecialchars((string)($reviewSummary['status'] ?? 'UNKNOWN')) ?>).</div>
+                    <?php endif; ?>
                     <div class="review-grid">
                         <?php foreach ($reviewItems as $review): ?>
                             <article class="review">
@@ -806,7 +803,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                                         <div class="review-time"><?= htmlspecialchars((string)($review['relative_time'] ?: '1 month ago')) ?></div>
                                     </div>
                                 </div>
-                                <div class="r-stars"><span><?= str_repeat('★', (int)round((float)$review['rating'])) ?></span><span class="verified">✓</span></div>
+                                <div class="r-stars"><span><?= str_repeat('★', (int)round((float)$review['rating'])) ?></span><img class="verified" src="assets/images/verification icon.png" alt="Verified"></div>
                                 <?php $text = (string)$review['text']; $isLong = textLength($text) > 140; ?>
                                 <p class="<?= $isLong ? 'truncate' : '' ?>" data-long="<?= $isLong ? '1' : '0' ?>"><?= htmlspecialchars($text) ?></p>
                                 <?php if ($isLong): ?>
