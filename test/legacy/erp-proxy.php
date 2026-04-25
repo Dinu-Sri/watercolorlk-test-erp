@@ -17,12 +17,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // ── Config ──
-define('ERP_BASE',       'https://erppro.lk/public');
-define('CLIENT_ID',      3);
-define('CLIENT_SECRET',  'yBlzajjA0ZdR19xZoVrvMokROKXSBEjV6a9vY41D');
-define('USERNAME',       'dinu');
-define('PASSWORD',       'prime1@PROJECT');
-define('LOCATION_ID',    5);
+define('ERP_BASE',       getenv('ERP_BASE_URL') ?: 'https://erppro.lk/public');
+define('CLIENT_ID',      (int)(getenv('ERP_CLIENT_ID') ?: 3));
+define('CLIENT_SECRET',  getenv('ERP_CLIENT_SECRET') ?: '');
+define('USERNAME',       getenv('ERP_USERNAME') ?: '');
+define('PASSWORD',       getenv('ERP_PASSWORD') ?: '');
+define('LOCATION_ID',    (int)(getenv('ERP_LOCATION_ID') ?: 5));
 define('TOKEN_CACHE',    __DIR__ . '/.erp_token_cache.json');
 
 // ── Route ──
