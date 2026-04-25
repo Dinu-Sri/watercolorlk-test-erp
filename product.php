@@ -543,7 +543,24 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             border-radius: 50%;
             background: conic-gradient(#4285F4 0 25%, #34A853 25% 50%, #FBBC05 50% 75%, #EA4335 75% 100%);
         }
-        .reviews-intro { min-width: 0; }
+        .reviews-intro { 
+            display: flex;
+            align-items: flex-start;
+            gap: 16px;
+            flex: 1;
+        }
+        .reviews-intro-left {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .reviews-intro-right {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            text-align: right;
+            align-items: flex-end;
+        }
         .profile-icon {
             width: 48px;
             height: 48px;
@@ -553,29 +570,29 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             background: #fff;
         }
         .reviews-intro h2 {
-            margin: 2px 0 4px;
+            margin: 0;
             color: var(--brand-navy-deep);
-            font: 700 1.9rem/1.12 'Playfair Display', serif;
+            font: 700 1.5rem/1.1 'Playfair Display', serif;
         }
         .summary-text strong,
         .based-text {
             display: block;
             color: #4f5d79;
-            font: 600 .95rem/1.2 'Source Sans 3', sans-serif;
+            font: 600 .88rem/1.15 'Source Sans 3', sans-serif;
         }
         .summary-stars {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             color: #4f5e79;
-            font-size: 1.05rem;
-            margin-top: 2px;
+            font-size: 1.2rem;
+            margin: 0;
+            justify-content: flex-end;
         }
         .summary-stars .gold { color: #f5b400; letter-spacing: .08em; }
         .google-logo {
-            height: 28px;
+            height: 20px;
             width: auto;
-            margin-bottom: 4px;
             display: block;
         }
         .review-grid {
@@ -791,10 +808,14 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                     <div class="reviews-head">
                         <img class="profile-icon" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK profile">
                         <div class="reviews-intro">
-                            <img class="google-logo" src="assets/images/google full logo.svg" alt="Google">
-                            <h2>Customer reviews</h2>
-                            <div class="summary-stars"><span class="gold">★★★★★</span><span><?= number_format($ratingValue, 1) ?></span></div>
-                            <div class="based-text">Based on <?= number_format($buyersCount) ?> reviews</div>
+                            <div class="reviews-intro-left">
+                                <img class="google-logo" src="assets/images/google full logo.svg" alt="Google">
+                                <h2>Customer reviews</h2>
+                            </div>
+                            <div class="reviews-intro-right">
+                                <div class="summary-stars"><span class="gold">★★★★★</span><span><?= number_format($ratingValue, 1) ?></span></div>
+                                <div class="based-text">Based on <?= number_format($buyersCount) ?> reviews</div>
+                            </div>
                         </div>
                     </div>
                     <?php if (($reviewSummary['source'] ?? 'fallback') !== 'google'): ?>
