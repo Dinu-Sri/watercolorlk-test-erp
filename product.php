@@ -48,13 +48,13 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
             position: sticky;
             top: 0;
             z-index: 40;
-            border-bottom: 1px solid rgba(255,255,255,.18);
+            border-bottom: 1px solid var(--line);
             backdrop-filter: blur(16px);
-            background: rgba(16,32,58,.86);
-            box-shadow: 0 10px 30px rgba(0,0,0,.12);
+            background: rgba(250, 248, 245, .94);
+            box-shadow: 0 8px 24px rgba(17, 31, 56, 0.08);
         }
         .header-inner { display: flex; align-items: center; gap: 16px; padding: 14px 0; }
-        .logo { height: 38px; width: auto; }
+        .logo { height: 42px; width: auto; }
         .back {
             display: inline-flex;
             align-items: center;
@@ -79,9 +79,6 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
             padding: 24px;
             box-shadow: var(--shadow-sm);
         }
-        .thumbs { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
-        .thumb { width: 72px; height: 72px; border-radius: 16px; border: 2px solid var(--line); background: #fff; padding: 6px; }
-        .thumb.active { border-color: var(--amber); box-shadow: 0 8px 16px rgba(232,118,10,.16); }
         .img {
             width: 100%;
             border-radius: 22px;
@@ -234,11 +231,6 @@ $stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
         <div class="layout">
             <div class="gallery">
                 <img class="img" src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$product['name']) ?>">
-                <div class="thumbs">
-                    <div class="thumb active"><img src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="thumb"></div>
-                    <div class="thumb"><img src="assets/images/mascots/watercolor-papers.webp" alt="thumb"></div>
-                    <div class="thumb"><img src="assets/images/mascots/watercolor-paints.webp" alt="thumb"></div>
-                </div>
             </div>
             <div class="box">
                 <?php if (!empty($product['badge'])): ?>

@@ -58,7 +58,13 @@ SELECT p.id, p.erp_product_id, p.sku, p.name,
 FROM products p
 LEFT JOIN product_overrides po ON po.product_id = p.id
 WHERE p.is_active = 1
-  AND (p.name LIKE :q OR p.sku LIKE :q OR p.category_name LIKE :q)
+    AND (
+            LOWER(p.name) LIKE LOWER(:q)
+            OR LOWER(COALESCE(po.override_title, '')) LIKE LOWER(:q)
+            OR LOWER(p.sku) LIKE LOWER(:q)
+            OR LOWER(p.category_name) LIKE LOWER(:q)
+            OR LOWER(COALESCE(p.brand_name, '')) LIKE LOWER(:q)
+    )
 ORDER BY p.stock_qty > 0 DESC, p.name ASC
 LIMIT :limit
 SQL;
@@ -75,7 +81,13 @@ SQL;
         $params = [];
 
         if ($query !== '') {
-            $where .= ' AND (p.name LIKE :q OR p.sku LIKE :q OR p.category_name LIKE :q)';
+            $where .= " AND (
+                LOWER(p.name) LIKE LOWER(:q)
+                OR LOWER(COALESCE(po.override_title, '')) LIKE LOWER(:q)
+                OR LOWER(p.sku) LIKE LOWER(:q)
+                OR LOWER(p.category_name) LIKE LOWER(:q)
+                OR LOWER(COALESCE(p.brand_name, '')) LIKE LOWER(:q)
+            )";
             $params['q'] = '%' . $query . '%';
         }
 

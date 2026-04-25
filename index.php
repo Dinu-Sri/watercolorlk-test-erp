@@ -53,10 +53,10 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
             position: sticky;
             top: 0;
             z-index: 40;
-            border-bottom: 1px solid rgba(255,255,255,.18);
+            border-bottom: 1px solid var(--line);
             backdrop-filter: blur(16px);
-            background: rgba(16,32,58,.86);
-            box-shadow: 0 10px 30px rgba(0,0,0,.12);
+            background: rgba(250, 248, 245, .94);
+            box-shadow: 0 8px 24px rgba(17, 31, 56, 0.08);
         }
         .header-inner {
             display: flex;
@@ -66,23 +66,24 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
         }
         .brand { display: flex; align-items: center; gap: 14px; min-width: 240px; text-decoration: none; }
         .logo { height: 38px; width: auto; display: block; }
-        .brand-copy strong { display: block; color: #fff; font: 700 1.05rem/1 'Montserrat', sans-serif; }
-        .brand-copy span { display: block; color: rgba(255,255,255,.68); font: 500 .76rem/1.3 'Montserrat', sans-serif; letter-spacing: .04em; }
+        .brand-copy strong { display: block; color: var(--brand-navy); font: 700 1.05rem/1 'Montserrat', sans-serif; }
+        .brand-copy span { display: block; color: #5b677e; font: 600 .76rem/1.3 'Montserrat', sans-serif; letter-spacing: .04em; }
         .header-search { flex: 1; position: relative; }
-        .header-search input {
+        .header-search-input {
             width: 100%;
-            border: none;
+            border: 1px solid #d7c9b8;
             outline: none;
             border-radius: 999px;
             padding: 14px 18px 14px 48px;
-            background: rgba(255,255,255,.12);
-            color: #fff;
+            background: #fff;
+            color: #1f2a3d;
             font: 500 .96rem/1.2 'Source Sans 3', sans-serif;
         }
-        .header-search input::placeholder { color: rgba(255,255,255,.64); }
-        .header-search span { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: rgba(255,255,255,.74); }
-        .header-links { display: flex; align-items: center; gap: 14px; color: rgba(255,255,255,.8); font: 600 .86rem/1 'Montserrat', sans-serif; }
-        .header-links .pill { padding: 10px 15px; border-radius: 999px; background: rgba(255,255,255,.12); color: #fff; text-decoration: none; }
+        .header-search-input::placeholder { color: #7a828f; }
+        .header-search-input:focus { border-color: var(--amber); box-shadow: 0 0 0 4px rgba(232,118,10,.14); }
+        .header-search span { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: #6d7383; font-size: .85rem; }
+        .header-links { display: flex; align-items: center; gap: 14px; color: #5d6780; font: 600 .86rem/1 'Montserrat', sans-serif; }
+        .header-links .pill { padding: 10px 15px; border-radius: 999px; background: #fff; color: var(--brand-navy); border: 1px solid var(--line); text-decoration: none; }
 
         .hero { padding: 40px 0 24px; }
         .hero-grid {
@@ -135,18 +136,6 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
         .bullet-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; color: #38445a; }
         .bullet-list li { display: flex; gap: 9px; align-items: flex-start; }
         .bullet-list li::before { content: '+'; color: var(--amber); font-weight: 700; line-height: 1; transform: translateY(3px); }
-        .search-wrap { position: relative; margin-top: 18px; z-index: 2; }
-        .search {
-            width: 100%;
-            border: 2px solid #d9ccbd;
-            border-radius: 14px;
-            padding: 14px;
-            font: 600 16px/1.2 'Source Sans 3', sans-serif;
-            color: #1d2330;
-            outline: none;
-            background: #fff;
-        }
-        .search:focus { border-color: var(--amber); box-shadow: 0 0 0 4px rgba(232,118,10,.14); }
         .suggestions {
             margin-top: 6px;
             border: 1px solid #d6cab8;
@@ -224,13 +213,17 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
         }
         .card-badges { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
         .body { padding: 16px; }
+        .body { display: grid; gap: 8px; align-content: start; min-height: 205px; }
         .name {
-            margin: 0 0 7px;
+            margin: 0;
             color: #22314d;
             font: 700 17px/1.24 'Source Sans 3', sans-serif;
-            min-height: 42px;
+            min-height: 48px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
-        .sku { color: var(--muted); font-size: .84rem; }
         .price-row { display: flex; align-items: end; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
         .price { color: var(--brand-navy); font: 700 1.55rem/1 'Source Sans 3', sans-serif; }
         .price-old { color: #9a8e81; text-decoration: line-through; font-size: .95rem; }
@@ -282,17 +275,17 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
             <img class="logo" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK">
             <span class="brand-copy">
                 <strong>Watercolor.LK</strong>
-                <span>Premium art supplies for fast conversion</span>
+                <span>Premium watercolor supplies in Sri Lanka</span>
             </span>
         </a>
         <div class="header-search">
-            <span>Search</span>
-            <input id="search" class="search" placeholder="Search brushes, sketchbooks, papers, SKU..." autocomplete="off">
+            <span>Find</span>
+            <input id="search" class="header-search-input" placeholder="Search products, brands, categories..." autocomplete="off">
             <div id="suggestions" class="suggestions"></div>
         </div>
         <nav class="header-links">
-            <a href="#cards">Cards</a>
-            <a class="pill" href="design-system.html">Design System</a>
+            <a href="#categories">Categories</a>
+            <a class="pill" href="#products">Shop now</a>
         </nav>
     </div>
 </header>
@@ -302,22 +295,22 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
         <div class="hero-grid">
             <div class="hero-card">
                 <span class="eyebrow">Live Catalog</span>
-                <h1 class="title">Premium, conversion-first watercolor shopping.</h1>
-                <p class="lead">Fast search, stock-aware merchandising, and trust-led presentation built for real buying behavior.</p>
+                <h1 class="title">Your trusted watercolor store for artists and learners.</h1>
+                <p class="lead">Discover papers, brushes, paints, and sketchbooks with clear stock and pricing. Every product card is optimized to help customers decide faster.</p>
                 <div class="metrics">
-                    <div class="metric"><strong>17px</strong><span>Readable product-first body text</span></div>
-                    <div class="metric"><strong>2-3 clicks</strong><span>Target depth to reach checkout intent</span></div>
-                    <div class="metric"><strong>Local sync</strong><span>Stable catalog even when ERP is slow</span></div>
+                    <div class="metric"><strong>Real-time</strong><span>Local catalog sync with ERP feed</span></div>
+                    <div class="metric"><strong>Island-wide</strong><span>Fast and safe shipping support</span></div>
+                    <div class="metric"><strong>Trusted</strong><span>Curated art materials only</span></div>
                 </div>
             </div>
             <div class="hero-side">
                 <div class="panel">
-                    <h3>What this page does</h3>
+                    <h3>Why customers buy here</h3>
                     <ul class="bullet-list">
-                        <li>Instant search while typing</li>
-                        <li>Trust-first card hierarchy for conversion</li>
-                        <li>Stock urgency without visual noise</li>
-                        <li>Quick jump into product-level ordering</li>
+                        <li>Fast search that works while typing</li>
+                        <li>Clear pricing and stock visibility</li>
+                        <li>Quick path to product ordering</li>
+                        <li>Reliable catalog updates from ERP</li>
                     </ul>
                 </div>
                 <div class="panel">
@@ -327,13 +320,13 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
         </div>
     </section>
 
-    <section class="section">
+    <section class="section" id="categories">
         <div class="section-head">
             <div>
                 <span class="eyebrow">Categories</span>
-                <h2>Mascot-led category discovery</h2>
+                <h2>Shop by watercolor essentials</h2>
             </div>
-            <p>Familiar mascot visuals support memory recall and faster browsing for repeat shoppers.</p>
+            <p>Browse popular categories first and narrow down faster using live search above.</p>
         </div>
         <div class="category-grid">
             <article class="category-card"><img class="category-icon" src="assets/images/mascots/watercolor-brushes-1.webp" alt="Brushes"><strong>Brushes</strong><span>Travel, wash, mop, and detail</span></article>
@@ -343,13 +336,13 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
         </div>
     </section>
 
-    <section class="section" id="cards">
+    <section class="section" id="products">
         <div class="section-head">
             <div>
-                <span class="eyebrow">Cards</span>
-                <h2>High-clarity conversion cards</h2>
+                <span class="eyebrow">Products</span>
+                <h2>Featured products</h2>
             </div>
-            <p>Each card keeps the order of influence: badge, image, title, price contrast, proof, then urgency.</p>
+            <p>Clean product cards built for clarity: image, title, price, proof, and stock in one balanced view.</p>
         </div>
         <div id="grid" class="grid">
         <?php foreach ($products as $product): ?>
@@ -369,7 +362,6 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
                 </div>
                 <div class="body">
                     <h3 class="name"><?= htmlspecialchars((string)$product['display_name']) ?></h3>
-                    <div class="sku">SKU: <?= htmlspecialchars((string)$product['sku']) ?></div>
                     <div class="price-row">
                         <span class="price">LKR <?= number_format((float)$product['price'], 2) ?></span>
                         <span class="price-old">LKR <?= number_format((float)$product['price'] * 1.12, 2) ?></span>
@@ -411,6 +403,10 @@ input.addEventListener('input', () => {
     suggestTimer = setTimeout(async () => {
         const res = await fetch(`api/search.php?q=${encodeURIComponent(q)}`);
         const data = await res.json();
+        if (!data.success) {
+            suggestions.style.display = 'none';
+            return;
+        }
         renderSuggestions(data.suggestions || []);
     }, 140);
 
@@ -418,6 +414,13 @@ input.addEventListener('input', () => {
         const current = ++requestId;
         const res = await fetch(`api/products.php?q=${encodeURIComponent(q)}&per_page=60`);
         const data = await res.json();
+        if (!data.success) {
+            if (current !== requestId) {
+                return;
+            }
+            grid.innerHTML = `<div class="empty">Search is temporarily unavailable. Please try again.</div>`;
+            return;
+        }
         if (current !== requestId) {
             return;
         }
@@ -431,6 +434,10 @@ input.addEventListener('keydown', async (event) => {
     const q = input.value.trim();
     const res = await fetch(`api/products.php?q=${encodeURIComponent(q)}&per_page=48`);
     const data = await res.json();
+    if (!data.success) {
+        grid.innerHTML = `<div class="empty">Search is temporarily unavailable. Please try again.</div>`;
+        return;
+    }
     const products = data.products || [];
     renderProducts(products);
     updateMeta(products.length, `Results for "${q}"`);
@@ -474,7 +481,6 @@ function renderProducts(items) {
             </div>
             <div class="body">
                 <h3 class="name">${escapeHtml(item.display_name)}</h3>
-                <div class="sku">SKU: ${escapeHtml(item.sku || '')}</div>
                 <div class="price-row">
                     <span class="price">LKR ${Number(item.price).toFixed(2)}</span>
                     <span class="price-old">LKR ${(Number(item.price) * 1.12).toFixed(2)}</span>
