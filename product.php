@@ -650,15 +650,11 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
         }
         .review-grid {
             display: grid;
-            grid-auto-flow: column;
-            grid-auto-columns: calc((100% - 12px) / 2);
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
-            overflow-x: auto;
             padding-bottom: 4px;
-            scroll-snap-type: x mandatory;
-            scrollbar-width: none;
+            overflow: hidden;
         }
-        .review-grid::-webkit-scrollbar { display: none; }
         .review-nav {
             position: absolute;
             top: 50%;
@@ -689,8 +685,8 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             padding: 12px 12px 10px;
             background: #fff;
             min-height: 235px;
-            scroll-snap-align: start;
         }
+        .review.is-hidden { display: none; }
         .review-top {
             display: flex;
             align-items: center;
@@ -832,7 +828,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             .layout { grid-template-columns: 1fr; }
             .box { position: static; }
             .best-grid { grid-template-columns: 1fr 1fr; }
-            .review-grid { grid-auto-columns: 100%; }
+            .review-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 720px) {
             .wrap { width: min(calc(100% - 24px), 1240px); }
@@ -1160,23 +1156,49 @@ function initReviewSlider() {
 
     if (!slider || !prevBtn || !nextBtn) return;
 
-    const updateButtons = () => {
-        const maxScroll = slider.scrollWidth - slider.clientWidth;
-        prevBtn.disabled = slider.scrollLeft <= 2;
-        nextBtn.disabled = slider.scrollLeft >= (maxScroll - 2);
+    const cards = Array.from(slider.querySelectorAll('.review'));
+    if (cards.length === 0) {
+        prevBtn.disabled = true;
+        nextBtn.disabled = true;
+        return;
+    }
+
+    let currentPage = 0;
+
+    const getPerPage = () => (window.matchMedia('(max-width: 980px)').matches ? 1 : 2);
+
+    const renderPage = () => {
+        const perPage = getPerPage();
+        const totalPages = Math.max(1, Math.ceil(cards.length / perPage));
+        currentPage = Math.max(0, Math.min(currentPage, totalPages - 1));
+
+        const start = currentPage * perPage;
+        const end = start + perPage;
+
+        cards.forEach((card, idx) => {
+            card.classList.toggle('is-hidden', !(idx >= start && idx < end));
+        });
+
+        prevBtn.disabled = currentPage === 0;
+        nextBtn.disabled = currentPage >= totalPages - 1;
+
+        const hideArrows = totalPages <= 1;
+        prevBtn.style.display = hideArrows ? 'none' : 'inline-flex';
+        nextBtn.style.display = hideArrows ? 'none' : 'inline-flex';
     };
 
-    const scrollByPage = (direction) => {
-        const amount = slider.clientWidth;
-        slider.scrollBy({ left: amount * direction, behavior: 'smooth' });
-    };
+    prevBtn.addEventListener('click', () => {
+        currentPage -= 1;
+        renderPage();
+    });
 
-    prevBtn.addEventListener('click', () => scrollByPage(-1));
-    nextBtn.addEventListener('click', () => scrollByPage(1));
+    nextBtn.addEventListener('click', () => {
+        currentPage += 1;
+        renderPage();
+    });
 
-    slider.addEventListener('scroll', updateButtons, { passive: true });
-    window.addEventListener('resize', updateButtons);
-    updateButtons();
+    window.addEventListener('resize', renderPage);
+    renderPage();
 }
 
 initReviewSlider();
