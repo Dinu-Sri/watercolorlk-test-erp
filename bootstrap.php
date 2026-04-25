@@ -7,6 +7,7 @@ require_once __DIR__ . '/src/Support/Database.php';
 require_once __DIR__ . '/src/Support/JsonResponse.php';
 require_once __DIR__ . '/src/Repositories/ProductRepository.php';
 require_once __DIR__ . '/src/Repositories/OrderRepository.php';
+require_once __DIR__ . '/src/Repositories/GoogleReviewRepository.php';
 require_once __DIR__ . '/src/Services/ErpClient.php';
 require_once __DIR__ . '/src/Services/CatalogSyncService.php';
 require_once __DIR__ . '/src/Services/OrderSyncService.php';

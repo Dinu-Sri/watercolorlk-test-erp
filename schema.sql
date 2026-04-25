@@ -64,3 +64,26 @@ CREATE TABLE IF NOT EXISTS order_items (
     INDEX idx_order_items_order (order_id),
     INDEX idx_order_items_erp_product (erp_product_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS google_reviews (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    review_id VARCHAR(255) NOT NULL UNIQUE,
+    place_id VARCHAR(255) NOT NULL,
+    author VARCHAR(255) NOT NULL,
+    rating DECIMAL(3,1) NOT NULL,
+    review_text LONGTEXT NULL,
+    review_date DATETIME NULL,
+    likes INT UNSIGNED DEFAULT 0,
+    author_profile_url VARCHAR(500) NULL,
+    profile_picture_local_path VARCHAR(500) NULL,
+    profile_picture_remote_url VARCHAR(500) NULL,
+    owner_response LONGTEXT NULL,
+    language VARCHAR(10) DEFAULT 'en',
+    is_active TINYINT(1) NOT NULL DEFAULT 1,
+    imported_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    INDEX idx_reviews_place_id (place_id),
+    INDEX idx_reviews_rating (rating),
+    INDEX idx_reviews_date (review_date),
+    INDEX idx_reviews_active (is_active)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
