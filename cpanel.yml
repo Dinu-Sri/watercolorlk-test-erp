@@ -1,0 +1,66 @@
+---
+# cPanel Git Version Control Deployment Configuration
+# Deploy only the Google Reviews Importer system files
+# Ignore: scraper, WordPress plugin, temporary files, local config
+
+deployment:
+  # Include only necessary files for the reviews importer
+  include:
+    # Core importer directory - all files
+    - importer/
+    
+    # Database repository
+    - src/Repositories/GoogleReviewRepository.php
+    
+    # Updated bootstrap and schema
+    - bootstrap.php
+    - schema.sql
+    
+    # Documentation
+    - README.md
+    - .gitignore
+
+  # Exclude files and directories that should NOT be deployed
+  exclude:
+    # Local configuration (create manually on server)
+    - config/local.php
+    
+    # Scraper - keep on local machine only
+    - tmp-google-reviews-scraper-pro/
+    - tmp_google_page.html
+    - tmp_maps_md.txt
+    
+    # WordPress plugin - unrelated
+    - wp-reviews-plugin-for-google/
+    
+    # Unrelated images
+    - assets/images/
+    
+    # Git files
+    - .git/
+    - .gitignore
+    - .github/
+    
+    # IDE and system files
+    - .vscode/
+    - .idea/
+    - .DS_Store
+    - *.swp
+    - *.swo
+    - Thumbs.db
+
+  # Post-deployment actions on cPanel server
+  post_deploy:
+    # Set directory permissions for image storage
+    - chmod -R 755 importer/reviews_images/
+    
+    # Set config file permissions (when created manually)
+    - chmod 644 config/local.php 2>/dev/null || true
+    
+    # Create required subdirectories if missing
+    - mkdir -p importer/reviews_images/profiles
+    - mkdir -p importer/logs
+
+# cPanel deployment info
+branch: main
+url: https://github.com/Dinu-Sri/watercolorlk-test-erp.git
