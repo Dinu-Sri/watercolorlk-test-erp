@@ -93,6 +93,65 @@ Expected output:
 ✨ You can now view reviews on your product page!
 ```
 
+## New Workflow: Upload JSON + Profile Images, Then Push to DB
+
+Use this flow when you want the server to use already-downloaded profile images (no re-download during import).
+
+### 1. Run scraper locally
+
+```bash
+cd tmp-google-reviews-scraper-pro
+python start.py scrape --url "https://www.google.com/maps/place/Watercolor.LK/..." --max-reviews 100 -q
+cd ..
+```
+
+This generates:
+- `tmp-google-reviews-scraper-pro/google_reviews.json`
+- `tmp-google-reviews-scraper-pro/review_images/[place_id]/profiles/*`
+
+### 2. Upload artifacts to cPanel server
+
+From Windows PowerShell:
+
+```powershell
+./scripts/upload-reviews-to-cpanel.ps1 `
+  -Server your.server.com `
+  -Username your_ssh_user `
+  -RemoteProjectPath /home/yourcpanel/repositories/watercolorlk-test-erp
+```
+
+### 3. Push uploaded data into MySQL
+
+On server:
+
+```bash
+cd /home/yourcpanel/repositories/watercolorlk-test-erp
+php importer/push-uploaded-reviews.php
+```
+
+Optional full refresh:
+
+```bash
+php importer/push-uploaded-reviews.php --delete-existing
+```
+
+You can also trigger this from browser/URL (protected by `SYNC_WEBHOOK_KEY`):
+
+```text
+https://your-domain.com/api/importer/push-uploaded-reviews.php?key=YOUR_SYNC_WEBHOOK_KEY
+```
+
+Optional URL parameters:
+- `delete_existing=1` to clear and re-import
+- `json=/absolute/path/to/google_reviews.json`
+- `images=/absolute/path/to/review_images`
+
+What this script does:
+- Reads uploaded `google_reviews.json`
+- Imports/updates reviews in `google_reviews`
+- Copies uploaded profile images into `importer/reviews_images/profiles/`
+- Stores matching `profile_picture_local_path` values in DB
+
 ### 7. Verify Reviews Are Displaying
 
 Test on your live product page:
