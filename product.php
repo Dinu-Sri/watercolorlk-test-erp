@@ -502,7 +502,11 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             transform: translateY(-1px);
         }
         .qty-value {
+            width: 100%;
+            min-width: 0;
             text-align: center;
+            outline: none;
+            box-shadow: none;
             font: 700 1.1rem/1 'Montserrat', sans-serif;
         }
         .delivery-inline {
@@ -575,7 +579,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
 
         .trust-grid {
             display: grid;
-            grid-template-columns: repeat(3, minmax(0,1fr));
+            grid-template-columns: repeat(4, minmax(0,1fr));
             gap: 10px;
             margin-top: 14px;
         }
@@ -857,6 +861,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             .box { position: static; }
             .best-grid { grid-template-columns: 1fr 1fr; }
             .review-grid { grid-template-columns: 1fr; }
+            .trust-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
         }
         @media (max-width: 720px) {
             .wrap { width: min(calc(100% - 24px), 1240px); }
@@ -891,8 +896,6 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
 </header>
 
 <main class="wrap content">
-    <a class="back" href="index.php">&larr; Back to shop</a>
-
     <?php if (!$product): ?>
         <div class="not-found">Product not found in local catalog. Run sync first.</div>
     <?php else: ?>
@@ -1034,6 +1037,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                     <div class="trust"><strong>Return & refund</strong></div>
                     <div class="trust"><strong>Delivery Tracking</strong></div>
                     <div class="trust"><strong>Island-wide Delivery</strong></div>
+                    <div class="trust"><strong>Safe payments</strong></div>
                 </div>
                 <div id="orderResult"></div>
             </aside>
