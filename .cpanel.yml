@@ -8,13 +8,14 @@ deployment:
     - /bin/mkdir -p $DEPLOYPATH
     - /bin/rm -rf $DEPLOYPATH/assets
     - /bin/rm -rf $DEPLOYPATH/src
-    - /bin/rm -rf $DEPLOYPATH/config
     - /bin/rm -rf $DEPLOYPATH/api
     - /bin/rm -rf $DEPLOYPATH/admin
     - /bin/rm -rf $DEPLOYPATH/scripts
+    - /bin/mkdir -p $DEPLOYPATH/config
     - /bin/cp -R assets $DEPLOYPATH/assets
     - /bin/cp -R src $DEPLOYPATH/src
-    - /bin/cp -R config $DEPLOYPATH/config
+    - /bin/cp config/app.php $DEPLOYPATH/config/app.php
+    - /bin/cp config/local.example.php $DEPLOYPATH/config/local.example.php
     - /bin/cp -R api $DEPLOYPATH/api
     - /bin/cp -R admin $DEPLOYPATH/admin
     - /bin/cp -R scripts $DEPLOYPATH/scripts
