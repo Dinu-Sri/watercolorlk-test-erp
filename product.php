@@ -810,27 +810,59 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             background: #fff;
         }
 
-        .best-head { margin: 24px 0 12px; }
         .trust-grid {
             display: grid;
-            grid-template-columns: repeat(4, minmax(0,1fr));
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .trust {
+            padding: 16px 12px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: #fff;
+            text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 74px;
+        }
+        .trust strong {
+            display: block;
+            color: var(--brand-navy);
+            font: 700 .95rem/1.2 'Montserrat', sans-serif;
+        }
+
+        .best-head { margin: 24px 0 12px; }
+        .best-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
             gap: 14px;
+            align-items: start;
         }
         .best-card {
-        .trust { padding: 16px 12px; border: 1px solid var(--line); border-radius: 16px; background: #fff; text-align: center; display:flex; align-items:center; justify-content:center; min-height:74px; }
-        .trust strong { display: block; color: var(--brand-navy); font: 700 .95rem/1.2 'Montserrat', sans-serif; }
+            border: 1px solid var(--line);
+            border-radius: 18px;
+            overflow: hidden;
             text-decoration: none;
             color: inherit;
             background: #fff;
             box-shadow: var(--shadow-sm);
+            min-width: 0;
         }
         .best-media {
-            aspect-ratio: 1/1;
+            height: 220px;
             background: #f3eee6;
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 12px;
+        }
+        @supports (aspect-ratio: 1 / 1) {
+            .best-media {
+                height: auto;
+                aspect-ratio: 1 / 1;
+            }
         }
         .best-media img { width: 100%; height: 100%; object-fit: cover; border-radius: 10px; }
         .best-body { padding: 12px; }
