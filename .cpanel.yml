@@ -8,6 +8,7 @@ deployment:
     - /bin/mkdir -p $DEPLOYPATH
     - /bin/rm -rf $DEPLOYPATH/assets
     - /bin/cp -R assets $DEPLOYPATH/assets
+    - /bin/cp design-system.html $DEPLOYPATH/design-system.html
     - /bin/cp erp-proxy.php $DEPLOYPATH/erp-proxy.php
     - /bin/cp index.html $DEPLOYPATH/index.html
     - /bin/cp product.html $DEPLOYPATH/product.html
