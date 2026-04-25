@@ -678,11 +678,11 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             padding: 0 30px;
         }
         .review-grid {
-            display: flex;
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
             padding-bottom: 4px;
-            transition: transform 1s cubic-bezier(.22,.61,.36,1);
-            will-change: transform;
+            overflow: hidden;
         }
         .review-nav {
             position: absolute;
@@ -714,8 +714,8 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             padding: 12px 12px 10px;
             background: #fff;
             min-height: 235px;
-            flex: 0 0 calc((100% - 12px) / 2);
         }
+        .review.is-hidden { display: none; }
         .review-top {
             display: flex;
             align-items: center;
@@ -856,7 +856,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             .layout { grid-template-columns: 1fr; }
             .box { position: static; }
             .best-grid { grid-template-columns: 1fr 1fr; }
-            .review { flex-basis: 100%; }
+            .review-grid { grid-template-columns: 1fr; }
         }
         @media (max-width: 720px) {
             .wrap { width: min(calc(100% - 24px), 1240px); }
@@ -1202,47 +1202,29 @@ function initReviewSlider() {
         return;
     }
 
-    let currentStep = 0;
+    let startIndex = 0;
     let totalSteps = 1;
     let autoTimer = null;
-    let perPage = 2;
-    let gap = 12;
-    let cardWidth = 0;
-    let baseCards = cards.slice();
+    const getPerPage = () => (window.matchMedia('(max-width: 980px)').matches ? 1 : 2);
 
-    const resetClones = () => {
-        slider.querySelectorAll('.review.is-clone').forEach((node) => node.remove());
-    };
+    const renderWindow = () => {
+        const perPage = getPerPage();
+        totalSteps = cards.length;
 
-    const buildLoopTrack = () => {
-        resetClones();
-        perPage = window.matchMedia('(max-width: 980px)').matches ? 1 : 2;
-        gap = parseFloat(window.getComputedStyle(slider).columnGap || window.getComputedStyle(slider).gap || '12') || 12;
+        if (totalSteps === 0) return;
 
-        const cloneCount = Math.min(perPage, baseCards.length);
-        for (let i = 0; i < cloneCount; i++) {
-            const clone = baseCards[i].cloneNode(true);
-            clone.classList.add('is-clone');
-            slider.appendChild(clone);
+        startIndex = ((startIndex % totalSteps) + totalSteps) % totalSteps;
+        const visible = new Set();
+        for (let i = 0; i < Math.min(perPage, totalSteps); i++) {
+            visible.add((startIndex + i) % totalSteps);
         }
 
-        const firstCard = slider.querySelector('.review');
-        cardWidth = firstCard ? firstCard.getBoundingClientRect().width : 0;
+        cards.forEach((card, idx) => {
+            const shouldShow = visible.has(idx);
+            card.classList.toggle('is-hidden', !shouldShow);
+        });
 
-        totalSteps = baseCards.length;
-        currentStep = 0;
-        slider.style.transition = 'none';
-        slider.style.transform = 'translateX(0px)';
-    };
-
-    const goToStep = (step, animate = true) => {
-        if (totalSteps <= 0 || cardWidth <= 0) return;
-        currentStep = step;
-        const offset = (cardWidth + gap) * currentStep;
-        slider.style.transition = animate ? 'transform 1s cubic-bezier(.22,.61,.36,1)' : 'none';
-        slider.style.transform = `translateX(${-offset}px)`;
-
-        const hideArrows = totalSteps <= 1;
+        const hideArrows = totalSteps <= perPage;
         prevBtn.style.display = hideArrows ? 'none' : 'inline-flex';
         nextBtn.style.display = hideArrows ? 'none' : 'inline-flex';
         prevBtn.disabled = hideArrows;
@@ -1259,40 +1241,26 @@ function initReviewSlider() {
     const startAuto = () => {
         stopAuto();
         autoTimer = window.setInterval(() => {
-            if (totalSteps <= 1) return;
-            goToStep(currentStep + 1, true);
+            const perPage = getPerPage();
+            if (totalSteps <= perPage) return;
+            startIndex += 1;
+            renderWindow();
         }, 5000);
     };
 
-    slider.addEventListener('transitionend', () => {
-        if (totalSteps <= 0) return;
-        if (currentStep >= totalSteps) {
-            currentStep = 0;
-            goToStep(0, false);
-        }
-        if (currentStep < 0) {
-            currentStep = totalSteps - 1;
-            goToStep(currentStep, false);
-        }
-    });
-
     prevBtn.addEventListener('click', () => {
-        if (totalSteps <= 1) return;
-        if (currentStep <= 0) {
-            currentStep = totalSteps;
-            goToStep(currentStep, false);
-            requestAnimationFrame(() => {
-                goToStep(totalSteps - 1, true);
-            });
-        } else {
-            goToStep(currentStep - 1, true);
-        }
+        const perPage = getPerPage();
+        if (totalSteps <= perPage) return;
+        startIndex -= 1;
+        renderWindow();
         startAuto();
     });
 
     nextBtn.addEventListener('click', () => {
-        if (totalSteps <= 1) return;
-        goToStep(currentStep + 1, true);
+        const perPage = getPerPage();
+        if (totalSteps <= perPage) return;
+        startIndex += 1;
+        renderWindow();
         startAuto();
     });
 
@@ -1303,13 +1271,8 @@ function initReviewSlider() {
     nextBtn.addEventListener('mouseenter', stopAuto);
     nextBtn.addEventListener('mouseleave', startAuto);
 
-    window.addEventListener('resize', () => {
-        buildLoopTrack();
-        goToStep(0, false);
-    });
-
-    buildLoopTrack();
-    goToStep(0, false);
+    window.addEventListener('resize', renderWindow);
+    renderWindow();
     startAuto();
 }
 
