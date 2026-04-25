@@ -113,6 +113,11 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
 $stockPercent = $stock <= 0 ? 0 : min(100, max(12, (int)($stock * 10)));
 $isOutOfStock = $stock <= 0;
 
+$today = new DateTimeImmutable('today');
+$deliveryStart = addWorkingDays($today, 2);
+$deliveryEnd = addWorkingDays($today, 5);
+$deliveryLabel = $deliveryStart->format('M j') . '* - ' . $deliveryEnd->format('M j') . '*';
+
 $brandLine = $product ? strtoupper(trim((string)($product['brand_name'] ?: 'Watercolor.LK / Artist Grade'))) : 'Watercolor.LK / Artist Grade';
 $categoryName = $product ? (string)($product['category_name'] ?? '') : '';
 $bestSellers = $product ? $repo->listBestSellersByCategory($categoryName, (int)$product['erp_product_id'], 4) : [];
@@ -416,8 +421,25 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             text-transform: uppercase;
             margin-bottom: 10px;
         }
-        .price { color: var(--brand-navy); font: 700 2.2rem/1.05 'Source Sans 3', sans-serif; }
+        .price { color: var(--brand-navy); font: 800 2.2rem/1.05 'Source Sans 3', sans-serif; }
         .price-compare { color: #9a8e81; text-decoration: line-through; margin-left: 8px; font-size: 1.08rem; }
+        .save-strip {
+            margin-top: 8px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: #eaf7ef;
+            color: #1f6b45;
+            border: 1px solid #b9e0c8;
+            border-radius: 999px;
+            padding: 5px 10px;
+            font: 700 .84rem/1.2 'Montserrat', sans-serif;
+            letter-spacing: .01em;
+        }
+        .save-strip strong {
+            color: #17633e;
+            font-weight: 800;
+        }
 
         .urgency-row { margin: 16px 0; display: flex; gap: 10px; align-items: center; color: #b23c2c; font: 700 1.05rem/1.2 'Source Sans 3', sans-serif; }
         .dot { width: 11px; height: 11px; border-radius: 999px; background: #bc4433; }
@@ -641,13 +663,13 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             align-items: center;
             gap: 6px;
             color: #4f5e79;
-            font-size: 1.2rem;
+            font-size: 1.44rem;
             margin: 0;
             justify-content: flex-end;
         }
-        .summary-stars .gold { color: #f5b400; letter-spacing: .08em; }
+        .summary-stars .gold { color: #f5b400; letter-spacing: .08em; font-size: 1.35rem; }
         .google-logo {
-            height: 20px;
+            height: 25px;
             width: auto;
             display: block;
         }
@@ -656,11 +678,11 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             padding: 0 30px;
         }
         .review-grid {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            display: flex;
             gap: 12px;
             padding-bottom: 4px;
-            overflow: hidden;
+            transition: transform 1s cubic-bezier(.22,.61,.36,1);
+            will-change: transform;
         }
         .review-nav {
             position: absolute;
@@ -692,8 +714,8 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             padding: 12px 12px 10px;
             background: #fff;
             min-height: 235px;
+            flex: 0 0 calc((100% - 12px) / 2);
         }
-        .review.is-hidden { display: none; }
         .review-top {
             display: flex;
             align-items: center;
@@ -785,15 +807,14 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
         }
 
         .best-head { margin: 24px 0 12px; }
-        .best-grid {
+        .trust-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(0,1fr));
             gap: 14px;
         }
         .best-card {
-            border: 1px solid var(--line);
-            border-radius: 18px;
-            overflow: hidden;
+        .trust { padding: 16px 12px; border: 1px solid var(--line); border-radius: 16px; background: #fff; text-align: center; display:flex; align-items:center; justify-content:center; min-height:74px; }
+        .trust strong { display: block; color: var(--brand-navy); font: 700 .95rem/1.2 'Montserrat', sans-serif; }
             text-decoration: none;
             color: inherit;
             background: #fff;
@@ -835,7 +856,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             .layout { grid-template-columns: 1fr; }
             .box { position: static; }
             .best-grid { grid-template-columns: 1fr 1fr; }
-            .review-grid { grid-template-columns: 1fr; }
+            .review { flex-basis: 100%; }
         }
         @media (max-width: 720px) {
             .wrap { width: min(calc(100% - 24px), 1240px); }
@@ -955,8 +976,17 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
 
                 <div class="price-panel">
                     <span class="price-label">Price including tax</span>
-                    <span class="price">LKR <?= number_format((float)$product['price'], 2) ?></span>
-                    <span class="price-compare">LKR <?= number_format((float)$product['price'] * 1.12, 2) ?></span>
+                    <?php
+                    $currentPrice = (float)$product['price'];
+                    $comparePrice = round($currentPrice * 1.12, 2);
+                    $savedAmount = max(0.0, $comparePrice - $currentPrice);
+                    $savedPercent = $comparePrice > 0 ? (int)round(($savedAmount / $comparePrice) * 100) : 0;
+                    ?>
+                    <span class="price">LKR <?= number_format($currentPrice, 2) ?></span>
+                    <span class="price-compare">LKR <?= number_format($comparePrice, 2) ?></span>
+                    <?php if ($savedAmount > 0): ?>
+                        <div class="save-strip">You save <strong>LKR <?= number_format($savedAmount, 2) ?></strong> (<?= $savedPercent ?>%) today</div>
+                    <?php endif; ?>
                 </div>
 
                 <div class="urgency-row"><span class="dot"></span><span><?= $isOutOfStock ? 'Out of stock' : ('Only ' . (int)$stock . ' left in stock') ?></span></div>
@@ -975,7 +1005,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                         <h3 class="mini-head">Delivery estimation</h3>
                         <div class="delivery-inline">
                             <svg class="delivery-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7h13v10H3z"></path><path d="M16 10h3l2 2v5h-5z"></path><circle cx="8" cy="18" r="1.8"></circle><circle cx="18" cy="18" r="1.8"></circle></svg>
-                            <span>2 to 5 working days</span>
+                            <span><?= htmlspecialchars($deliveryLabel) ?></span>
                         </div>
                     </div>
                 </div>
@@ -997,12 +1027,13 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                     <span class="pay-chip">VISA</span>
                     <span class="pay-chip">Mastercard</span>
                     <span class="pay-chip">Bank Transfer</span>
+                    <span class="pay-chip">Cash on Delivery</span>
                 </div>
 
                 <div class="trust-grid">
-                    <div class="trust"><strong>Return & refund</strong><span>7-day support for valid issues</span></div>
-                    <div class="trust"><strong>Secure checkout</strong><span>Encrypted payment processing</span></div>
-                    <div class="trust"><strong>Delivery support</strong><span>Island-wide delivery available</span></div>
+                    <div class="trust"><strong>Return & refund</strong></div>
+                    <div class="trust"><strong>Delivery Tracking</strong></div>
+                    <div class="trust"><strong>Island-wide Delivery</strong></div>
                 </div>
                 <div id="orderResult"></div>
             </aside>
@@ -1171,25 +1202,47 @@ function initReviewSlider() {
         return;
     }
 
-    let currentPage = 0;
-    let totalPages = 1;
+    let currentStep = 0;
+    let totalSteps = 1;
     let autoTimer = null;
+    let perPage = 2;
+    let gap = 12;
+    let cardWidth = 0;
+    let baseCards = cards.slice();
 
-    const getPerPage = () => (window.matchMedia('(max-width: 980px)').matches ? 1 : 2);
+    const resetClones = () => {
+        slider.querySelectorAll('.review.is-clone').forEach((node) => node.remove());
+    };
 
-    const renderPage = () => {
-        const perPage = getPerPage();
-        totalPages = Math.max(1, Math.ceil(cards.length / perPage));
-        currentPage = ((currentPage % totalPages) + totalPages) % totalPages;
+    const buildLoopTrack = () => {
+        resetClones();
+        perPage = window.matchMedia('(max-width: 980px)').matches ? 1 : 2;
+        gap = parseFloat(window.getComputedStyle(slider).columnGap || window.getComputedStyle(slider).gap || '12') || 12;
 
-        const start = currentPage * perPage;
-        const end = start + perPage;
+        const cloneCount = Math.min(perPage, baseCards.length);
+        for (let i = 0; i < cloneCount; i++) {
+            const clone = baseCards[i].cloneNode(true);
+            clone.classList.add('is-clone');
+            slider.appendChild(clone);
+        }
 
-        cards.forEach((card, idx) => {
-            card.classList.toggle('is-hidden', !(idx >= start && idx < end));
-        });
+        const firstCard = slider.querySelector('.review');
+        cardWidth = firstCard ? firstCard.getBoundingClientRect().width : 0;
 
-        const hideArrows = totalPages <= 1;
+        totalSteps = baseCards.length;
+        currentStep = 0;
+        slider.style.transition = 'none';
+        slider.style.transform = 'translateX(0px)';
+    };
+
+    const goToStep = (step, animate = true) => {
+        if (totalSteps <= 0 || cardWidth <= 0) return;
+        currentStep = step;
+        const offset = (cardWidth + gap) * currentStep;
+        slider.style.transition = animate ? 'transform 1s cubic-bezier(.22,.61,.36,1)' : 'none';
+        slider.style.transform = `translateX(${-offset}px)`;
+
+        const hideArrows = totalSteps <= 1;
         prevBtn.style.display = hideArrows ? 'none' : 'inline-flex';
         nextBtn.style.display = hideArrows ? 'none' : 'inline-flex';
         prevBtn.disabled = hideArrows;
@@ -1206,21 +1259,40 @@ function initReviewSlider() {
     const startAuto = () => {
         stopAuto();
         autoTimer = window.setInterval(() => {
-            if (totalPages <= 1) return;
-            currentPage += 1;
-            renderPage();
+            if (totalSteps <= 1) return;
+            goToStep(currentStep + 1, true);
         }, 5000);
     };
 
+    slider.addEventListener('transitionend', () => {
+        if (totalSteps <= 0) return;
+        if (currentStep >= totalSteps) {
+            currentStep = 0;
+            goToStep(0, false);
+        }
+        if (currentStep < 0) {
+            currentStep = totalSteps - 1;
+            goToStep(currentStep, false);
+        }
+    });
+
     prevBtn.addEventListener('click', () => {
-        currentPage -= 1;
-        renderPage();
+        if (totalSteps <= 1) return;
+        if (currentStep <= 0) {
+            currentStep = totalSteps;
+            goToStep(currentStep, false);
+            requestAnimationFrame(() => {
+                goToStep(totalSteps - 1, true);
+            });
+        } else {
+            goToStep(currentStep - 1, true);
+        }
         startAuto();
     });
 
     nextBtn.addEventListener('click', () => {
-        currentPage += 1;
-        renderPage();
+        if (totalSteps <= 1) return;
+        goToStep(currentStep + 1, true);
         startAuto();
     });
 
@@ -1231,8 +1303,13 @@ function initReviewSlider() {
     nextBtn.addEventListener('mouseenter', stopAuto);
     nextBtn.addEventListener('mouseleave', startAuto);
 
-    window.addEventListener('resize', renderPage);
-    renderPage();
+    window.addEventListener('resize', () => {
+        buildLoopTrack();
+        goToStep(0, false);
+    });
+
+    buildLoopTrack();
+    goToStep(0, false);
     startAuto();
 }
 
