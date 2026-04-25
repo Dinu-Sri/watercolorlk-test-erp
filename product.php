@@ -469,27 +469,34 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
         }
         .qty-btn {
             cursor: pointer;
-            font: 700 1.6rem/1 'Source Sans 3', sans-serif;
             display: inline-flex;
             align-items: center;
             justify-content: center;
+            font: 700 1.25rem/1 'Source Sans 3', sans-serif;
+        }
+        .qty-btn span {
+            display: inline-block;
+            line-height: 1;
+            transform: translateY(-1px);
         }
         .qty-value {
             text-align: center;
             font: 700 1.1rem/1 'Montserrat', sans-serif;
         }
-        .delivery-box {
-            border: 1px solid var(--line);
-            border-radius: 16px;
-            padding: 12px;
-            background: #fff;
-            color: #304056;
-            font-size: .88rem;
-            min-height: 74px;
-            display: flex;
+        .delivery-inline {
+            display: inline-flex;
             align-items: center;
+            gap: 8px;
+            color: #304056;
+            font: 700 .98rem/1.2 'Source Sans 3', sans-serif;
+            padding-top: 6px;
         }
-        .delivery-box strong { display: block; color: var(--brand-navy); margin: 0; }
+        .delivery-icon {
+            width: 18px;
+            height: 18px;
+            color: #4f5d79;
+            flex: 0 0 18px;
+        }
 
         .meta-inline {
             margin-top: 10px;
@@ -959,15 +966,16 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                     <div>
                         <h3 class="qty-head">Quantity</h3>
                         <div class="qty-controls">
-                            <button class="qty-btn" type="button" onclick="changeQty(-1)" aria-label="Decrease quantity">-</button>
+                            <button class="qty-btn" type="button" onclick="changeQty(-1)" aria-label="Decrease quantity"><span>&minus;</span></button>
                             <input id="qty" class="qty-value" type="text" value="1" readonly>
-                            <button class="qty-btn" type="button" onclick="changeQty(1)" aria-label="Increase quantity">+</button>
+                            <button class="qty-btn" type="button" onclick="changeQty(1)" aria-label="Increase quantity"><span>&plus;</span></button>
                         </div>
                     </div>
                     <div>
                         <h3 class="mini-head">Delivery estimation</h3>
-                        <div class="delivery-box">
-                            <strong>2 to 5 working days</strong>
+                        <div class="delivery-inline">
+                            <svg class="delivery-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 7h13v10H3z"></path><path d="M16 10h3l2 2v5h-5z"></path><circle cx="8" cy="18" r="1.8"></circle><circle cx="18" cy="18" r="1.8"></circle></svg>
+                            <span>2 to 5 working days</span>
                         </div>
                     </div>
                 </div>
@@ -1164,13 +1172,15 @@ function initReviewSlider() {
     }
 
     let currentPage = 0;
+    let totalPages = 1;
+    let autoTimer = null;
 
     const getPerPage = () => (window.matchMedia('(max-width: 980px)').matches ? 1 : 2);
 
     const renderPage = () => {
         const perPage = getPerPage();
-        const totalPages = Math.max(1, Math.ceil(cards.length / perPage));
-        currentPage = Math.max(0, Math.min(currentPage, totalPages - 1));
+        totalPages = Math.max(1, Math.ceil(cards.length / perPage));
+        currentPage = ((currentPage % totalPages) + totalPages) % totalPages;
 
         const start = currentPage * perPage;
         const end = start + perPage;
@@ -1179,26 +1189,51 @@ function initReviewSlider() {
             card.classList.toggle('is-hidden', !(idx >= start && idx < end));
         });
 
-        prevBtn.disabled = currentPage === 0;
-        nextBtn.disabled = currentPage >= totalPages - 1;
-
         const hideArrows = totalPages <= 1;
         prevBtn.style.display = hideArrows ? 'none' : 'inline-flex';
         nextBtn.style.display = hideArrows ? 'none' : 'inline-flex';
+        prevBtn.disabled = hideArrows;
+        nextBtn.disabled = hideArrows;
+    };
+
+    const stopAuto = () => {
+        if (autoTimer !== null) {
+            window.clearInterval(autoTimer);
+            autoTimer = null;
+        }
+    };
+
+    const startAuto = () => {
+        stopAuto();
+        autoTimer = window.setInterval(() => {
+            if (totalPages <= 1) return;
+            currentPage += 1;
+            renderPage();
+        }, 5000);
     };
 
     prevBtn.addEventListener('click', () => {
         currentPage -= 1;
         renderPage();
+        startAuto();
     });
 
     nextBtn.addEventListener('click', () => {
         currentPage += 1;
         renderPage();
+        startAuto();
     });
+
+    slider.addEventListener('mouseenter', stopAuto);
+    slider.addEventListener('mouseleave', startAuto);
+    prevBtn.addEventListener('mouseenter', stopAuto);
+    prevBtn.addEventListener('mouseleave', startAuto);
+    nextBtn.addEventListener('mouseenter', stopAuto);
+    nextBtn.addEventListener('mouseleave', startAuto);
 
     window.addEventListener('resize', renderPage);
     renderPage();
+    startAuto();
 }
 
 initReviewSlider();
