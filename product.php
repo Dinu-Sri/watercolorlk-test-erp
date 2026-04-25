@@ -601,13 +601,22 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             text-align: right;
             align-items: flex-end;
         }
-        .profile-icon {
+        .profile-icon-shell {
             width: 48px;
             height: 48px;
             border-radius: 50%;
             border: 1px solid #d9cab8;
-            object-fit: cover;
             background: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex: 0 0 48px;
+        }
+        .profile-icon-logo {
+            width: 36px;
+            height: 36px;
+            object-fit: contain;
         }
         .reviews-intro h2 {
             margin: 0;
@@ -635,13 +644,44 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             width: auto;
             display: block;
         }
+        .review-slider-shell {
+            position: relative;
+            padding: 0 30px;
+        }
         .review-grid {
             display: grid;
             grid-auto-flow: column;
-            grid-auto-columns: minmax(255px, 255px);
-            gap: 10px;
+            grid-auto-columns: calc((100% - 12px) / 2);
+            gap: 12px;
             overflow-x: auto;
             padding-bottom: 4px;
+            scroll-snap-type: x mandatory;
+            scrollbar-width: none;
+        }
+        .review-grid::-webkit-scrollbar { display: none; }
+        .review-nav {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            border: 1px solid #d9cab8;
+            background: #fff;
+            color: var(--brand-navy);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font: 700 1.25rem/1 'Source Sans 3', sans-serif;
+            cursor: pointer;
+            box-shadow: var(--shadow-sm);
+            z-index: 2;
+        }
+        .review-nav[data-review-nav="prev"] { left: -2px; }
+        .review-nav[data-review-nav="next"] { right: -2px; }
+        .review-nav:disabled {
+            opacity: .35;
+            cursor: default;
         }
         .review {
             border: 1px solid var(--line);
@@ -649,6 +689,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             padding: 12px 12px 10px;
             background: #fff;
             min-height: 235px;
+            scroll-snap-align: start;
         }
         .review-top {
             display: flex;
@@ -791,7 +832,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             .layout { grid-template-columns: 1fr; }
             .box { position: static; }
             .best-grid { grid-template-columns: 1fr 1fr; }
-            .review-grid { grid-auto-columns: minmax(88%, 88%); }
+            .review-grid { grid-auto-columns: 100%; }
         }
         @media (max-width: 720px) {
             .wrap { width: min(calc(100% - 24px), 1240px); }
@@ -846,7 +887,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
 
                 <div class="module" style="margin-top:16px;">
                     <div class="reviews-head">
-                        <img class="profile-icon" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK profile">
+                        <span class="profile-icon-shell" aria-hidden="true"><img class="profile-icon-logo" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK profile"></span>
                         <div class="reviews-intro">
                             <div class="reviews-intro-left">
                                 <img class="google-logo" src="assets/images/google full logo.svg" alt="Google">
@@ -861,7 +902,9 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                     <?php if (!$isDbReviewFeed && ($reviewSummary['source'] ?? 'fallback') !== 'google'): ?>
                         <div style="margin:2px 0 10px;color:#a44d05;font-size:.86rem;">Live Google reviews are not loading yet (<?= htmlspecialchars((string)($reviewSummary['status'] ?? 'UNKNOWN')) ?>).</div>
                     <?php endif; ?>
-                    <div class="review-grid">
+                    <div class="review-slider-shell">
+                        <button class="review-nav" data-review-nav="prev" type="button" aria-label="Previous reviews">‹</button>
+                        <div class="review-grid" id="reviewSlider">
                         <?php foreach ($reviewItems as $review): ?>
                             <article class="review">
                                 <div class="review-top">
@@ -874,7 +917,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                                         <div class="review-time"><?= htmlspecialchars((string)($review['relative_time'] ?: '1 month ago')) ?></div>
                                     </div>
                                 </div>
-                                <div class="r-stars"><span><?= str_repeat('★', (int)round((float)$review['rating'])) ?></span><img class="verified" src="assets/images/brand/verified-check.svg" alt="Verified"></div>
+                                <div class="r-stars"><span><?= str_repeat('★', (int)round((float)$review['rating'])) ?></span><img class="verified" src="assets/images/verification icon.png" alt="Verified" onerror="this.onerror=null;this.src='assets/images/brand/verified-check.svg';"></div>
                                 <?php $text = (string)$review['text']; $isLong = textLength($text) > 140; ?>
                                 <p class="<?= $isLong ? 'truncate' : '' ?>" data-long="<?= $isLong ? '1' : '0' ?>"><?= htmlspecialchars($text) ?></p>
                                 <?php if ($isLong): ?>
@@ -882,6 +925,8 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                                 <?php endif; ?>
                             </article>
                         <?php endforeach; ?>
+                        </div>
+                        <button class="review-nav" data-review-nav="next" type="button" aria-label="Next reviews">›</button>
                     </div>
                     <a class="review-link" href="<?= htmlspecialchars($googleProfileUrl) ?>" target="_blank" rel="noopener">See more reviews</a>
                 </div>
@@ -1107,6 +1152,34 @@ function toggleReviewText(link) {
         link.textContent = 'Read less';
     }
 }
+
+function initReviewSlider() {
+    const slider = document.getElementById('reviewSlider');
+    const prevBtn = document.querySelector('[data-review-nav="prev"]');
+    const nextBtn = document.querySelector('[data-review-nav="next"]');
+
+    if (!slider || !prevBtn || !nextBtn) return;
+
+    const updateButtons = () => {
+        const maxScroll = slider.scrollWidth - slider.clientWidth;
+        prevBtn.disabled = slider.scrollLeft <= 2;
+        nextBtn.disabled = slider.scrollLeft >= (maxScroll - 2);
+    };
+
+    const scrollByPage = (direction) => {
+        const amount = slider.clientWidth;
+        slider.scrollBy({ left: amount * direction, behavior: 'smooth' });
+    };
+
+    prevBtn.addEventListener('click', () => scrollByPage(-1));
+    nextBtn.addEventListener('click', () => scrollByPage(1));
+
+    slider.addEventListener('scroll', updateButtons, { passive: true });
+    window.addEventListener('resize', updateButtons);
+    updateButtons();
+}
+
+initReviewSlider();
 <?php endif; ?>
 </script>
 </body>
