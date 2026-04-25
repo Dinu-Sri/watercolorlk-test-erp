@@ -6,6 +6,9 @@ deployment:
   tasks:
     - export DEPLOYPATH=$HOME/public_html/api
     - /bin/mkdir -p $DEPLOYPATH
+    - /bin/rm -f $DEPLOYPATH/index.html
+    - /bin/rm -f $DEPLOYPATH/product.html
+    - /bin/rm -f $DEPLOYPATH/erp-proxy.php
     - /bin/rm -rf $DEPLOYPATH/assets
     - /bin/rm -rf $DEPLOYPATH/src
     - /bin/rm -rf $DEPLOYPATH/api
