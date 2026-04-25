@@ -5,7 +5,8 @@ declare(strict_types=1);
 require_once __DIR__ . '/bootstrap.php';
 
 $repo = new ProductRepository(appDb());
-$products = $repo->listProducts('', 24, 0);
+$initialQuery = trim((string)($_GET['q'] ?? ''));
+$products = $repo->listProducts($initialQuery, 24, 0);
 $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
 ?>
 <!doctype html>
@@ -242,7 +243,7 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
         </a>
         <div class="header-search">
             <span>Find</span>
-            <input id="search" class="header-search-input" placeholder="Search products, brands, categories..." autocomplete="off">
+            <input id="search" class="header-search-input" placeholder="Search products, brands, categories..." autocomplete="off" value="<?= htmlspecialchars($initialQuery) ?>">
             <div id="suggestions" class="suggestions"></div>
         </div>
         <div class="header-actions">
@@ -317,7 +318,7 @@ cartButton.addEventListener('click', (event) => {
     alert('Cart module is coming next.');
 });
 
-updateMeta(initialProducts.length, 'Showing latest products');
+updateMeta(initialProducts.length, <?= json_encode($initialQuery !== '' ? ('Results for "' . $initialQuery . '"') : 'Showing latest products') ?>);
 
 input.addEventListener('input', () => {
     const q = input.value.trim();

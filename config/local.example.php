@@ -20,4 +20,9 @@ return [
     'ERP_ORDER_ENDPOINT' => '/connector/api/sell',
 
     'SYNC_WEBHOOK_KEY' => 'change-me-strong-key',
+
+    // Optional: Google Business Profile review integration.
+    'GOOGLE_PLACE_ID' => '',
+    'GOOGLE_PLACES_API_KEY' => '',
+    'GOOGLE_REVIEWS_URL' => '',
 ];

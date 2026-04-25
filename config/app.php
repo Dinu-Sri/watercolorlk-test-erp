@@ -45,3 +45,8 @@ define('ERP_ORDER_ENDPOINT', (string)$cfg('ERP_ORDER_ENDPOINT', '/connector/api/
 
 // Simple key to protect manual sync routes.
 define('SYNC_WEBHOOK_KEY', (string)$cfg('SYNC_WEBHOOK_KEY', 'change-me'));
+
+// Optional Google Business Profile integration.
+define('GOOGLE_PLACE_ID', (string)$cfg('GOOGLE_PLACE_ID', ''));
+define('GOOGLE_PLACES_API_KEY', (string)$cfg('GOOGLE_PLACES_API_KEY', ''));
+define('GOOGLE_REVIEWS_URL', (string)$cfg('GOOGLE_REVIEWS_URL', ''));

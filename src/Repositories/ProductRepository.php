@@ -143,6 +143,32 @@ SQL;
         return $row ?: null;
     }
 
+    public function listBestSellersByCategory(string $categoryName, int $excludeErpId, int $limit = 4): array
+    {
+        $sql = <<<SQL
+SELECT p.id, p.erp_product_id, p.sku,
+       COALESCE(NULLIF(po.override_title, ''), p.name) AS display_name,
+       COALESCE(po.override_image_url, p.image_url) AS image_url,
+       COALESCE(po.override_price, p.price) AS price,
+       p.stock_qty,
+       p.category_name,
+       COALESCE(po.override_badge, '') AS badge
+FROM products p
+LEFT JOIN product_overrides po ON po.product_id = p.id
+WHERE p.is_active = 1
+  AND p.erp_product_id <> :exclude_erp_id
+  AND LOWER(COALESCE(p.category_name, '')) = LOWER(:category_name)
+ORDER BY p.stock_qty > 0 DESC, p.stock_qty DESC, p.updated_at DESC
+LIMIT :limit
+SQL;
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':exclude_erp_id', $excludeErpId, PDO::PARAM_INT);
+        $stmt->bindValue(':category_name', $categoryName, PDO::PARAM_STR);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        return $stmt->fetchAll();
+    }
+
     public function saveOverride(int $productId, array $override): void
     {
         $sql = <<<SQL
