@@ -1,9 +1,11 @@
 ---
+# .cpanel.yml - controls which files are deployed to the live server.
+# Only production runtime files are deployed.
+# Documentation, test files, and dev tools stay in GitHub only.
 deployment:
   tasks:
     - export DEPLOYPATH=$HOME/public_html/api
     - /bin/mkdir -p $DEPLOYPATH
-    - /bin/cp -R API_REFERENCE.md $DEPLOYPATH
-    - /bin/cp -R erp-proxy.php $DEPLOYPATH
-    - /bin/cp -R index.html $DEPLOYPATH
-    - /bin/cp -R product.html $DEPLOYPATH
+    - /bin/cp erp-proxy.php $DEPLOYPATH/erp-proxy.php
+    - /bin/cp index.html $DEPLOYPATH/index.html
+    - /bin/cp product.html $DEPLOYPATH/product.html
