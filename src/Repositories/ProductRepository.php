@@ -52,6 +52,7 @@ SQL;
     {
         $sql = <<<SQL
 SELECT p.id, p.erp_product_id, p.sku, p.name,
+    COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
        COALESCE(po.override_image_url, p.image_url) AS image_url,
        COALESCE(po.override_price, p.price) AS price,
        COALESCE(po.override_badge, '') AS badge
@@ -143,10 +144,36 @@ SQL;
         return $row ?: null;
     }
 
+    public function getBySlug(string $slug): ?array
+    {
+        $sql = <<<SQL
+SELECT p.id, p.erp_product_id, p.sku,
+       COALESCE(NULLIF(po.override_title, ''), p.name) AS name,
+       COALESCE(NULLIF(po.override_description, ''), p.description) AS description,
+       COALESCE(po.override_image_url, p.image_url) AS image_url,
+       COALESCE(po.override_price, p.price) AS price,
+       p.stock_qty,
+       p.category_name,
+       p.brand_name,
+       COALESCE(po.override_badge, '') AS badge,
+       COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug
+FROM products p
+LEFT JOIN product_overrides po ON po.product_id = p.id
+WHERE p.is_active = 1
+  AND LOWER(COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id))) = LOWER(:slug)
+LIMIT 1
+SQL;
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute(['slug' => $slug]);
+        $row = $stmt->fetch();
+        return $row ?: null;
+    }
+
     public function listBestSellersByCategory(string $categoryName, int $excludeErpId, int $limit = 4): array
     {
         $sql = <<<SQL
 SELECT p.id, p.erp_product_id, p.sku,
+    COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
        COALESCE(NULLIF(po.override_title, ''), p.name) AS display_name,
        COALESCE(po.override_image_url, p.image_url) AS image_url,
        COALESCE(po.override_price, p.price) AS price,

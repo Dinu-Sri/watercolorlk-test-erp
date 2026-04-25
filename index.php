@@ -8,6 +8,16 @@ $repo = new ProductRepository(appDb());
 $initialQuery = trim((string)($_GET['q'] ?? ''));
 $products = $repo->listProducts($initialQuery, 24, 0);
 $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
+
+function productUrl(string $slug, int $erpId): string
+{
+    $slug = trim($slug);
+    if ($slug !== '') {
+        return 'product/' . rawurlencode($slug);
+    }
+
+    return 'product.php?id=' . $erpId;
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -272,7 +282,7 @@ $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
     <section id="products">
         <div id="grid" class="grid">
         <?php foreach ($products as $product): ?>
-            <a class="card" href="product.php?id=<?= (int)$product['erp_product_id'] ?>">
+            <a class="card" href="<?= htmlspecialchars(productUrl((string)($product['slug'] ?? ''), (int)$product['erp_product_id'])) ?>">
                 <div class="media">
                     <div class="card-badges">
                         <?php if ((float)$product['stock_qty'] <= 0): ?>
@@ -389,7 +399,7 @@ function renderSuggestions(items) {
     }
 
     suggestions.innerHTML = items.map(item => `
-        <div class="suggestion" onclick="window.location='product.php?id=${item.erp_product_id}'">
+        <div class="suggestion" onclick="window.location='${buildProductUrl(item)}'">
             ${escapeHtml(item.name)} - LKR ${Number(item.price).toFixed(2)}
         </div>
     `).join('');
@@ -403,7 +413,7 @@ function renderProducts(items) {
     }
 
     grid.innerHTML = items.map(item => `
-        <a class="card" href="product.php?id=${item.erp_product_id}">
+        <a class="card" href="${buildProductUrl(item)}">
             <div class="media">
                 <div class="card-badges">
                     ${renderTopBadge(item)}
@@ -421,6 +431,14 @@ function renderProducts(items) {
             </div>
         </a>
     `).join('');
+}
+
+function buildProductUrl(item) {
+    const slug = String(item.slug || '').trim();
+    if (slug !== '') {
+        return `product/${encodeURIComponent(slug)}`;
+    }
+    return `product.php?id=${Number(item.erp_product_id || 0)}`;
 }
 
 function renderTopBadge(item) {

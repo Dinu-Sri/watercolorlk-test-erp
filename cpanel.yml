@@ -9,6 +9,8 @@ deployment:
     # Core application files
     - index.php
     - product.php
+    - .htaccess
+    - robots.txt
     - api/
     - assets/
 

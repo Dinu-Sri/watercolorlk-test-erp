@@ -29,6 +29,16 @@ function textLength(string $value): int
     return strlen($value);
 }
 
+function productUrl(string $slug, int $erpId): string
+{
+    $slug = trim($slug);
+    if ($slug !== '') {
+        return 'product/' . rawurlencode($slug);
+    }
+
+    return 'product.php?id=' . $erpId;
+}
+
 function fetchGoogleReviewSummary(): array
 {
     if (!defined('GOOGLE_PLACE_ID') || !defined('GOOGLE_PLACES_API_KEY') || GOOGLE_PLACE_ID === '' || GOOGLE_PLACES_API_KEY === '') {
@@ -106,8 +116,28 @@ function fetchGoogleReviewSummary(): array
 }
 
 $erpId = (int)($_GET['id'] ?? 0);
+$slug = trim((string)($_GET['slug'] ?? ''));
+
+if ($slug === '') {
+    $requestPath = (string)(parse_url((string)($_SERVER['REQUEST_URI'] ?? ''), PHP_URL_PATH) ?? '');
+    if (preg_match('#/product/([^/?#]+)$#i', $requestPath, $matches) === 1) {
+        $slug = rawurldecode((string)$matches[1]);
+    }
+}
+
 $repo = new ProductRepository(appDb());
-$product = $erpId > 0 ? $repo->getByErpId($erpId) : null;
+$product = null;
+if ($slug !== '') {
+    $product = $repo->getBySlug($slug);
+}
+if (!$product && $erpId > 0) {
+    $product = $repo->getByErpId($erpId);
+}
+
+if ($product && $slug === '' && $erpId > 0 && !headers_sent()) {
+    header('Location: ' . productUrl((string)($product['slug'] ?? ''), (int)$product['erp_product_id']), true, 301);
+    exit;
+}
 
 $stock = $product ? (float)$product['stock_qty'] : 0;
 $stockPercent = $stock <= 0 ? 0 : min(100, max(12, (int)($stock * 10)));
@@ -1083,7 +1113,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                 <div class="module" style="grid-column:1 / -1;">More category products will appear after the next sync.</div>
             <?php else: ?>
                 <?php foreach ($bestSellers as $item): ?>
-                    <a class="best-card" href="product.php?id=<?= (int)$item['erp_product_id'] ?>">
+                    <a class="best-card" href="<?= htmlspecialchars(productUrl((string)($item['slug'] ?? ''), (int)$item['erp_product_id'])) ?>">
                         <div class="best-media"><img src="<?= htmlspecialchars((string)($item['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$item['display_name']) ?>"></div>
                         <div class="best-body">
                             <h3 class="best-name"><?= htmlspecialchars((string)$item['display_name']) ?></h3>

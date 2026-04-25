@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /
+
+# Staging environment - block indexing for all crawlers.

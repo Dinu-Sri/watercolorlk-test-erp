@@ -1,0 +1,9 @@
+RewriteEngine On
+
+# Keep existing files/directories working directly
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# SEO product URLs: /product/<slug>
+RewriteRule ^product/([^/]+)/?$ product.php?slug=$1 [L,QSA,NC]
