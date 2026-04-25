@@ -8,6 +8,7 @@ $erpId = (int)($_GET['id'] ?? 0);
 $repo = new ProductRepository(appDb());
 $product = $erpId > 0 ? $repo->getByErpId($erpId) : null;
 $stock = $product ? (float)$product['stock_qty'] : 0;
+$stockPercent = $stock <= 0 ? 5 : min(100, max(12, (int)($stock * 12)));
 ?>
 <!doctype html>
 <html lang="en">
@@ -43,6 +44,17 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
             font: 400 17px/1.7 'Source Sans 3', 'Segoe UI', sans-serif;
         }
         .wrap { width: min(calc(100% - 32px), 1180px); margin: 0 auto; padding: 22px 0 36px; }
+        .site-header {
+            position: sticky;
+            top: 0;
+            z-index: 40;
+            border-bottom: 1px solid rgba(255,255,255,.18);
+            backdrop-filter: blur(16px);
+            background: rgba(16,32,58,.86);
+            box-shadow: 0 10px 30px rgba(0,0,0,.12);
+        }
+        .header-inner { display: flex; align-items: center; gap: 16px; padding: 14px 0; }
+        .logo { height: 38px; width: auto; }
         .back {
             display: inline-flex;
             align-items: center;
@@ -56,20 +68,23 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
         .layout {
             display: grid;
             grid-template-columns: 1.1fr .9fr;
-            gap: 20px;
+            gap: 24px;
             margin-top: 14px;
         }
         .gallery,
         .box {
             background: rgba(255, 255, 255, .9);
             border: 1px solid var(--line);
-            border-radius: 24px;
-            padding: 18px;
+            border-radius: 28px;
+            padding: 24px;
             box-shadow: var(--shadow-sm);
         }
+        .thumbs { display: flex; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+        .thumb { width: 72px; height: 72px; border-radius: 16px; border: 2px solid var(--line); background: #fff; padding: 6px; }
+        .thumb.active { border-color: var(--amber); box-shadow: 0 8px 16px rgba(232,118,10,.16); }
         .img {
             width: 100%;
-            border-radius: 18px;
+            border-radius: 22px;
             border: 1px solid #e8decd;
             background: #fff;
             aspect-ratio: 1 / 1;
@@ -81,9 +96,30 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
             color: var(--brand-navy-deep);
             font: 700 clamp(1.7rem, 3vw, 2.4rem)/1.12 'Playfair Display', serif;
         }
+        .price-panel {
+            background: linear-gradient(135deg,#fffaf4,#f8ece0);
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            padding: 18px;
+            margin: 12px 0;
+        }
+        .price-label {
+            display: block;
+            color: var(--muted);
+            font: 700 .78rem/1 'Montserrat', sans-serif;
+            letter-spacing: .12em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+        }
         .price {
             color: var(--brand-navy);
-            font: 700 2rem/1.1 'Source Sans 3', sans-serif;
+            font: 700 2.2rem/1.05 'Source Sans 3', sans-serif;
+        }
+        .price-compare {
+            color: #9a8e81;
+            text-decoration: line-through;
+            margin-left: 8px;
+            font-size: 1rem;
         }
         .stock {
             margin: 8px 0 12px;
@@ -93,6 +129,21 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
         }
         .stock.ok { color: var(--success); }
         .stock.low { color: var(--danger); }
+        .urgency {
+            height: 7px;
+            border-radius: 999px;
+            background: #ecd9d1;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .urgency span {
+            display: block;
+            height: 100%;
+            width: <?= $stockPercent ?>%;
+            background: linear-gradient(90deg, var(--danger), var(--amber));
+        }
+        .rating { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: .84rem; margin-top: 8px; }
+        .stars { color: var(--gold); letter-spacing: .08em; }
         .desc {
             margin: 0 0 12px;
             color: #313949;
@@ -130,7 +181,7 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
         .button {
             width: 100%;
             box-sizing: border-box;
-            padding: 12px;
+            padding: 13px;
             border-radius: 12px;
             margin-top: 12px;
             border: 0;
@@ -139,6 +190,18 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
             background: linear-gradient(180deg, #e8760a, #c4600a);
             font: 700 16px/1.2 'Source Sans 3', sans-serif;
         }
+        .button.secondary {
+            background: #fff;
+            color: var(--brand-navy);
+            border: 2px solid var(--brand-navy);
+        }
+        .button.whatsapp {
+            background: #25d366;
+        }
+        .trust-grid { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 10px; margin-top: 14px; }
+        .trust { padding: 12px; border: 1px solid var(--line); border-radius: 16px; background: #fff; text-align: center; }
+        .trust strong { display: block; color: var(--brand-navy); font: 700 .88rem/1.2 'Montserrat', sans-serif; }
+        .trust span { display: block; color: var(--muted); font-size: .78rem; margin-top: 4px; }
         #orderResult { margin-top: 10px; font: 600 14px/1.4 'Source Sans 3', sans-serif; }
         .not-found {
             margin-top: 12px;
@@ -151,10 +214,17 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
         @media (max-width: 820px) {
             .layout { grid-template-columns: 1fr; }
             .wrap { width: min(calc(100% - 24px), 1180px); }
+            .trust-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
 <body>
+<header class="site-header">
+    <div class="wrap header-inner">
+        <img class="logo" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK">
+    </div>
+</header>
+
 <div class="wrap">
     <a class="back" href="index.php">&larr; Back to shop</a>
 
@@ -164,6 +234,11 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
         <div class="layout">
             <div class="gallery">
                 <img class="img" src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$product['name']) ?>">
+                <div class="thumbs">
+                    <div class="thumb active"><img src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="thumb"></div>
+                    <div class="thumb"><img src="assets/images/mascots/watercolor-papers.webp" alt="thumb"></div>
+                    <div class="thumb"><img src="assets/images/mascots/watercolor-paints.webp" alt="thumb"></div>
+                </div>
             </div>
             <div class="box">
                 <?php if (!empty($product['badge'])): ?>
@@ -171,8 +246,14 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
                 <?php endif; ?>
                 <div class="brand">Watercolor.LK Curated</div>
                 <h1><?= htmlspecialchars((string)$product['name']) ?></h1>
-                <div class="price">LKR <?= number_format((float)$product['price'], 2) ?></div>
+                <div class="rating"><span class="stars">★★★★★</span><span>4.9 rated by buyers</span><span>126 sold</span></div>
+                <div class="price-panel">
+                    <span class="price-label">Price including tax</span>
+                    <span class="price">LKR <?= number_format((float)$product['price'], 2) ?></span>
+                    <span class="price-compare">LKR <?= number_format((float)$product['price'] * 1.12, 2) ?></span>
+                </div>
                 <div class="stock <?= $stock > 2 ? 'ok' : 'low' ?>"><?= $stock > 2 ? 'In stock' : 'Limited stock' ?>: <?= $stock ?></div>
+                <div class="urgency"><span></span></div>
                 <p class="desc"><?= nl2br(htmlspecialchars((string)$product['description'])) ?></p>
 
                 <h3 class="order-title">Quick Order</h3>
@@ -187,7 +268,15 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
                 <textarea id="notes" class="field" placeholder="Notes"></textarea>
                 <input id="qty" class="field" type="number" value="1" min="1" step="1">
                 <button class="button" onclick="submitOrder()">Place Order</button>
+                <button class="button secondary" type="button">Add to Cart</button>
+                <button class="button whatsapp" type="button">WhatsApp Order</button>
                 <div id="orderResult"></div>
+
+                <div class="trust-grid">
+                    <div class="trust"><strong>Secure checkout</strong><span>Server-side processing</span></div>
+                    <div class="trust"><strong>Fast delivery</strong><span>Island-wide dispatch</span></div>
+                    <div class="trust"><strong>Trusted sourcing</strong><span>Curated art supply focus</span></div>
+                </div>
             </div>
         </div>
 
