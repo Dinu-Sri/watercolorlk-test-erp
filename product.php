@@ -20,6 +20,15 @@ function addWorkingDays(DateTimeImmutable $startDate, int $days): DateTimeImmuta
     return $current;
 }
 
+function textLength(string $value): int
+{
+    if (function_exists('mb_strlen')) {
+        return mb_strlen($value);
+    }
+
+    return strlen($value);
+}
+
 function fetchGoogleReviewSummary(): array
 {
     if (!defined('GOOGLE_PLACE_ID') || !defined('GOOGLE_PLACES_API_KEY') || GOOGLE_PLACE_ID === '' || GOOGLE_PLACES_API_KEY === '') {
@@ -74,6 +83,8 @@ function fetchGoogleReviewSummary(): array
             'text' => trim((string)($review['text'] ?? '')),
             'time' => (int)($review['time'] ?? time()),
             'author_url' => (string)($review['author_url'] ?? ''),
+            'relative_time' => (string)($review['relative_time_description'] ?? ''),
+            'profile_photo_url' => (string)($review['profile_photo_url'] ?? ''),
         ];
     }
 
@@ -108,12 +119,14 @@ $buyersCount = max((int)($reviewSummary['count'] ?? 0), 382);
 $soldCount = max($buyersCount * 2 + 54, 1260);
 
 $reviewItems = [];
-foreach (array_slice((array)$reviewSummary['reviews'], 0, 2) as $item) {
+foreach (array_slice((array)$reviewSummary['reviews'], 0, 8) as $item) {
     $reviewItems[] = [
         'author' => $item['author'] !== '' ? $item['author'] : 'Verified Buyer',
         'rating' => max(1, min(5, (float)($item['rating'] ?? 5))),
         'text' => $item['text'] !== '' ? $item['text'] : 'Excellent quality and fast delivery. Will order again.',
         'author_url' => (string)($item['author_url'] ?? ''),
+        'relative_time' => (string)($item['relative_time'] ?? '1 month ago'),
+        'profile_photo_url' => (string)($item['profile_photo_url'] ?? ''),
     ];
 }
 if (count($reviewItems) === 0) {
@@ -123,12 +136,16 @@ if (count($reviewItems) === 0) {
             'rating' => 5,
             'text' => 'Superb quality and exactly as shown. Delivery was smooth and on time.',
             'author_url' => '',
+            'relative_time' => '1 month ago',
+            'profile_photo_url' => '',
         ],
         [
             'author' => 'Returning Customer',
             'rating' => 5,
             'text' => 'Professional packaging and genuine products. Highly recommend this shop.',
             'author_url' => '',
+            'relative_time' => '1 month ago',
+            'profile_photo_url' => '',
         ],
     ];
 }
@@ -509,43 +526,141 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             border-radius: 50%;
             background: conic-gradient(#4285F4 0 25%, #34A853 25% 50%, #FBBC05 50% 75%, #EA4335 75% 100%);
         }
+        .review-summary {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 10px 12px;
+            background: #fff;
+            margin-bottom: 12px;
+        }
+        .profile-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 1px solid #d9cab8;
+            object-fit: cover;
+            background: #fff;
+        }
+        .summary-text strong {
+            display: block;
+            color: var(--brand-navy);
+            font: 700 .95rem/1.2 'Montserrat', sans-serif;
+        }
+        .summary-stars {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #4f5e79;
+            font-size: .9rem;
+            margin-top: 3px;
+        }
+        .summary-stars .gold { color: #f5b400; letter-spacing: .08em; }
+        .google-logo {
+            height: 28px;
+            width: auto;
+            margin-top: 6px;
+        }
         .review-grid {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-auto-flow: column;
+            grid-auto-columns: minmax(255px, 255px);
             gap: 10px;
-            max-height: 360px;
-            overflow-y: auto;
-            padding-right: 4px;
+            overflow-x: auto;
+            padding-bottom: 4px;
         }
         .review {
             border: 1px solid var(--line);
             border-radius: 16px;
-            padding: 12px;
+            padding: 12px 12px 10px;
             background: #fff;
+            min-height: 235px;
         }
         .review-top {
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            gap: 8px;
-            margin-bottom: 2px;
+            gap: 10px;
+            margin-bottom: 7px;
         }
+        .review-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 1px solid #d8cbb9;
+            background: #f2eee8;
+            flex: 0 0 36px;
+        }
+        .review-meta { min-width: 0; }
         .review-author {
             display: inline-flex;
             align-items: center;
             gap: 8px;
             color: var(--brand-navy);
-            font: 700 .92rem/1.2 'Montserrat', sans-serif;
+            font: 700 .95rem/1.2 'Montserrat', sans-serif;
             text-decoration: none;
+            max-width: 100%;
+        }
+        .review-author .name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            max-width: 165px;
         }
         .g-icon {
             width: 16px;
             height: 16px;
-            border-radius: 50%;
-            background: conic-gradient(#4285F4 0 25%, #34A853 25% 50%, #FBBC05 50% 75%, #EA4335 75% 100%);
+            object-fit: contain;
+            flex: 0 0 16px;
         }
-        .review .r-stars { color: var(--gold); margin: 6px 0 4px; letter-spacing: .08em; }
-        .review p { margin: 0; color: #495267; font-size: .9rem; line-height: 1.45; }
+        .review-time {
+            color: #7a869f;
+            font: 600 .82rem/1.2 'Source Sans 3', sans-serif;
+            margin-top: 2px;
+        }
+        .review .r-stars {
+            color: #f5b400;
+            margin: 3px 0 6px;
+            letter-spacing: .08em;
+            font-size: 1.22rem;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .verified {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #3b82f6;
+            color: #fff;
+            font-size: .66rem;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .review p {
+            margin: 0;
+            color: #111827;
+            font-size: 1.01rem;
+            line-height: 1.45;
+        }
+        .review p.truncate {
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .read-more {
+            display: inline-block;
+            margin-top: 8px;
+            color: #7b8598;
+            text-decoration: none;
+            font: 600 .95rem/1 'Source Sans 3', sans-serif;
+        }
         .review-link {
             display: inline-flex;
             align-items: center;
@@ -611,7 +726,7 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
             .layout { grid-template-columns: 1fr; }
             .box { position: static; }
             .best-grid { grid-template-columns: 1fr 1fr; }
-            .review-grid { grid-template-columns: 1fr; }
+            .review-grid { grid-auto-columns: minmax(88%, 88%); }
         }
         @media (max-width: 720px) {
             .wrap { width: min(calc(100% - 24px), 1240px); }
@@ -669,22 +784,34 @@ $searchSeed = trim((string)($_GET['q'] ?? ''));
                         <h2>Customer reviews</h2>
                         <span class="google-badge"><span class="google-dot"></span>Google reviews</span>
                     </div>
-                    <a class="review-link" href="<?= htmlspecialchars($googleProfileUrl) ?>" target="_blank" rel="noopener" style="margin-top:0;margin-bottom:10px;">View Google profile</a>
-                    <div class="rating-row" style="margin:0 0 10px;">
-                        <span class="stars">★★★★★</span>
-                        <span><?= number_format($ratingValue, 1) ?> rating from <?= number_format($buyersCount) ?> buyers</span>
+                    <div class="review-summary">
+                        <img class="profile-icon" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK profile">
+                        <div class="summary-text">
+                            <strong>Watercolor.LK</strong>
+                            <div class="summary-stars"><span class="gold">★★★★★</span><span><?= number_format($ratingValue, 1) ?></span></div>
+                            <div style="color:#546079;font-size:.88rem;line-height:1.25;">Based on <?= number_format($buyersCount) ?> reviews</div>
+                            <img class="google-logo" src="assets/images/google full logo.svg" alt="Google">
+                        </div>
                     </div>
                     <div class="review-grid">
                         <?php foreach ($reviewItems as $review): ?>
                             <article class="review">
                                 <div class="review-top">
-                                    <a class="review-author" href="<?= htmlspecialchars((string)($review['author_url'] ?: $googleProfileUrl)) ?>" target="_blank" rel="noopener">
-                                        <span class="g-icon"></span>
-                                        <span><?= htmlspecialchars((string)$review['author']) ?></span>
-                                    </a>
+                                    <img class="review-avatar" src="<?= htmlspecialchars((string)($review['profile_photo_url'] !== '' ? $review['profile_photo_url'] : 'assets/images/brand/favicon-watercolorlk.webp')) ?>" alt="reviewer">
+                                    <div class="review-meta">
+                                        <a class="review-author" href="<?= htmlspecialchars((string)($review['author_url'] ?: $googleProfileUrl)) ?>" target="_blank" rel="noopener">
+                                            <span class="name"><?= htmlspecialchars((string)$review['author']) ?></span>
+                                            <img class="g-icon" src="assets/images/google icon for go near user name.svg" alt="Google">
+                                        </a>
+                                        <div class="review-time"><?= htmlspecialchars((string)($review['relative_time'] ?: '1 month ago')) ?></div>
+                                    </div>
                                 </div>
-                                <div class="r-stars"><?= str_repeat('★', (int)round((float)$review['rating'])) ?></div>
-                                <p><?= htmlspecialchars((string)$review['text']) ?></p>
+                                <div class="r-stars"><span><?= str_repeat('★', (int)round((float)$review['rating'])) ?></span><span class="verified">✓</span></div>
+                                <?php $text = (string)$review['text']; $isLong = textLength($text) > 140; ?>
+                                <p class="<?= $isLong ? 'truncate' : '' ?>" data-long="<?= $isLong ? '1' : '0' ?>"><?= htmlspecialchars($text) ?></p>
+                                <?php if ($isLong): ?>
+                                    <a class="read-more" href="#" onclick="toggleReviewText(this); return false;">Read more</a>
+                                <?php endif; ?>
                             </article>
                         <?php endforeach; ?>
                     </div>
@@ -894,6 +1021,23 @@ function openWhatsAppOrder() {
     const qty = Number(document.getElementById('qty').value || 1);
     const text = encodeURIComponent(`Hi Watercolor.LK, I want to order ${product.name} (Qty: ${qty}).`);
     window.open(`https://wa.me/94700000000?text=${text}`, '_blank');
+}
+
+function toggleReviewText(link) {
+    const card = link.closest('.review');
+    if (!card) return;
+
+    const p = card.querySelector('p');
+    if (!p) return;
+
+    const isExpanded = !p.classList.contains('truncate');
+    if (isExpanded) {
+        p.classList.add('truncate');
+        link.textContent = 'Read more';
+    } else {
+        p.classList.remove('truncate');
+        link.textContent = 'Read less';
+    }
 }
 <?php endif; ?>
 </script>
