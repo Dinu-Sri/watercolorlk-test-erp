@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Watercolor.LK - Design System Review</title>
+<meta name="description" content="Design system review page for Watercolor.LK premium ecommerce direction."/>
+<link rel="icon" type="image/webp" href="assets/images/brand/favicon-watercolorlk.webp"/>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root{
+    --brand-navy:#1b2d4f;
+    --brand-navy-deep:#10203a;
+    --paper:#faf8f5;
+    --surface:#ffffff;
+    --surface-soft:#f4eee7;
+    --line:#e7ddd2;
+    --text:#1a1a1a;
+    --muted:#6b6b6b;
+    --amber:#e8760a;
+    --amber-deep:#c4600a;
+    --rose:#c4705a;
+    --danger:#c0392b;
+    --success:#2d7a4f;
+    --gold:#d8a03d;
+    --shadow-sm:0 10px 24px rgba(17, 31, 56, 0.08);
+    --shadow-lg:0 24px 60px rgba(17, 31, 56, 0.14);
+    --radius-sm:10px;
+    --radius-md:18px;
+    --radius-lg:28px;
+    --content:1240px;
+  }
+  *,*::before,*::after{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(circle at top left, rgba(196,112,90,.15), transparent 32%),
+      radial-gradient(circle at top right, rgba(232,118,10,.08), transparent 28%),
+      linear-gradient(180deg, #fffdfa 0%, var(--paper) 42%, #f5eee6 100%);
+    color:var(--text);
+    font:400 17px/1.7 'Source Sans 3', 'Segoe UI', sans-serif;
+  }
+  img{max-width:100%;display:block;}
+  a{color:inherit;text-decoration:none;}
+  .wrap{width:min(calc(100% - 32px), var(--content));margin:0 auto;}
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:10px;padding:8px 14px;border-radius:999px;
+    background:rgba(27,45,79,.08);color:var(--brand-navy);font:700 12px/1 'Montserrat', sans-serif;
+    letter-spacing:.12em;text-transform:uppercase;
+  }
+  .eyebrow::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--amber);}
+  .site-header{
+    position:sticky;top:0;z-index:40;border-bottom:1px solid rgba(255,255,255,.18);
+    backdrop-filter:blur(16px);background:rgba(16,32,58,.86);box-shadow:0 10px 30px rgba(0,0,0,.12);
+  }
+  .header-inner{display:flex;align-items:center;gap:20px;padding:14px 0;}
+  .brand{display:flex;align-items:center;gap:14px;min-width:240px;}
+  .brand img{height:38px;width:auto;}
+  .brand-copy strong{display:block;color:#fff;font:700 1.05rem/1 'Montserrat', sans-serif;}
+  .brand-copy span{display:block;color:rgba(255,255,255,.68);font:500 .76rem/1.3 'Montserrat', sans-serif;letter-spacing:.04em;}
+  .header-search{flex:1;position:relative;}
+  .header-search input{
+    width:100%;border:none;outline:none;border-radius:999px;padding:14px 18px 14px 48px;
+    background:rgba(255,255,255,.12);color:#fff;font:500 .96rem/1.2 'Source Sans 3', sans-serif;
+  }
+  .header-search input::placeholder{color:rgba(255,255,255,.64);}
+  .header-search span{position:absolute;left:18px;top:50%;transform:translateY(-50%);color:rgba(255,255,255,.74);}
+  .header-links{display:flex;align-items:center;gap:18px;color:rgba(255,255,255,.78);font:600 .88rem/1 'Montserrat', sans-serif;}
+  .header-links .pill{padding:11px 16px;border-radius:999px;background:rgba(255,255,255,.12);color:#fff;}
+
+  .hero{padding:42px 0 28px;}
+  .hero-grid{display:grid;grid-template-columns:1.18fr .82fr;gap:28px;align-items:stretch;}
+  .hero-card,.panel{background:rgba(255,255,255,.8);border:1px solid rgba(255,255,255,.72);box-shadow:var(--shadow-sm);}
+  .hero-card{position:relative;overflow:hidden;border-radius:var(--radius-lg);padding:42px;}
+  .hero-card::after{
+    content:'';position:absolute;inset:auto -8% -20% auto;width:340px;height:340px;border-radius:50%;
+    background:radial-gradient(circle, rgba(232,118,10,.18), rgba(196,112,90,.08), transparent 68%);
+  }
+  .hero-title{margin:18px 0 14px;font:700 clamp(2.4rem, 5vw, 4.5rem)/1.05 'Playfair Display', serif;letter-spacing:-.03em;color:var(--brand-navy-deep);max-width:12ch;}
+  .hero-copy{max-width:58ch;color:#374056;font-size:1.02rem;}
+  .hero-actions{display:flex;flex-wrap:wrap;gap:14px;margin:28px 0 24px;position:relative;z-index:1;}
+  .hero-metrics{display:grid;grid-template-columns:repeat(3, minmax(0, 1fr));gap:14px;position:relative;z-index:1;}
+  .metric{padding:16px 18px;border-radius:18px;background:#fff;border:1px solid var(--line);}
+  .metric strong{display:block;color:var(--brand-navy);font:700 1.45rem/1 'Montserrat', sans-serif;}
+  .metric span{display:block;color:var(--muted);font-size:.88rem;}
+  .hero-side{display:grid;gap:18px;}
+  .panel{border-radius:24px;padding:24px;}
+  .panel h3{margin:0 0 12px;color:var(--brand-navy);font:700 1.28rem/1.2 'Montserrat', sans-serif;}
+  .bullet-list{display:grid;gap:11px;padding:0;margin:0;list-style:none;}
+  .bullet-list li{display:flex;gap:10px;align-items:flex-start;color:#374056;}
+  .bullet-list li::before{content:'+';color:var(--amber);font-weight:700;line-height:1;transform:translateY(3px);}
+
+  .section{padding:22px 0 38px;}
+  .section-head{display:flex;justify-content:space-between;gap:18px;align-items:end;margin-bottom:22px;}
+  .section-head h2{margin:8px 0 0;font:700 clamp(1.85rem, 3vw, 2.7rem)/1.1 'Playfair Display', serif;color:var(--brand-navy-deep);}
+  .section-head p{max-width:58ch;color:#495164;margin:0;}
+
+  .grid-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;}
+  .grid-4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:18px;}
+  .spec-card,.demo-card,.swatch,.rule-card,.category-card,.product-card,.checkout-card,.mini-card{
+    background:rgba(255,255,255,.88);border:1px solid var(--line);border-radius:24px;box-shadow:var(--shadow-sm);
+  }
+  .spec-card,.demo-card,.rule-card,.checkout-card,.mini-card{padding:24px;}
+
+  .type-scale{display:grid;gap:12px;}
+  .type-line{padding-bottom:14px;border-bottom:1px solid var(--line);}
+  .type-line:last-child{padding-bottom:0;border-bottom:none;}
+  .type-label{display:block;color:var(--muted);font:700 .78rem/1 'Montserrat', sans-serif;letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px;}
+  .display{font:700 clamp(2.1rem, 5vw, 3.8rem)/1.05 'Playfair Display', serif;color:var(--brand-navy-deep);}
+  .heading-lg{font:700 2rem/1.18 'Playfair Display', serif;color:var(--brand-navy-deep);}
+  .heading-md{font:700 1.45rem/1.25 'Montserrat', sans-serif;color:var(--brand-navy);}
+  .body-copy{font:400 17px/1.7 'Source Sans 3', sans-serif;color:#2d3442;}
+  .small-copy{font:600 14px/1.55 'Source Sans 3', sans-serif;color:var(--muted);}
+
+  .swatch-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px;}
+  .swatch{overflow:hidden;}
+  .swatch-top{height:126px;}
+  .swatch-copy{padding:14px 16px;}
+  .swatch-copy strong{display:block;font:700 .98rem/1.2 'Montserrat', sans-serif;color:var(--brand-navy);}
+  .swatch-copy span{display:block;color:var(--muted);font-size:.85rem;}
+
+  .button-row,.chip-row{display:flex;flex-wrap:wrap;gap:14px;}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;padding:14px 24px;border-radius:14px;
+    border:2px solid transparent;font:700 1rem/1 'Source Sans 3', sans-serif;letter-spacing:.01em;cursor:default;
+  }
+  .btn-primary{background:linear-gradient(180deg,var(--amber),var(--amber-deep));color:#fff;box-shadow:0 14px 26px rgba(196,96,10,.22);}
+  .btn-secondary{background:#fff;border-color:var(--brand-navy);color:var(--brand-navy);}
+  .btn-ghost{background:rgba(27,45,79,.07);color:var(--brand-navy);}
+  .btn-whatsapp{background:#25d366;color:#fff;}
+  .btn-danger{background:var(--danger);color:#fff;}
+  .chip{display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;font:700 .76rem/1 'Montserrat', sans-serif;letter-spacing:.08em;text-transform:uppercase;}
+  .chip-sale{background:rgba(192,57,43,.1);color:var(--danger);}
+  .chip-stock{background:rgba(45,122,79,.12);color:var(--success);}
+  .chip-new{background:rgba(196,112,90,.14);color:#8f4d39;}
+  .chip-soft{background:rgba(27,45,79,.08);color:var(--brand-navy);}
+
+  .category-card{padding:20px;text-align:center;transition:transform .18s ease, box-shadow .18s ease;}
+  .category-card:hover{transform:translateY(-3px);box-shadow:var(--shadow-lg);}
+  .category-icon{height:88px;width:88px;margin:0 auto 16px;object-fit:contain;}
+  .category-card strong{display:block;color:var(--brand-navy);font:700 1rem/1.1 'Montserrat', sans-serif;}
+  .category-card span{display:block;color:var(--muted);font-size:.88rem;margin-top:7px;}
+
+  .card-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;}
+  .product-card{overflow:hidden;transition:transform .18s ease, box-shadow .18s ease;}
+  .product-card:hover{transform:translateY(-4px);box-shadow:var(--shadow-lg);}
+  .product-media{position:relative;background:#fff;aspect-ratio:1/1;display:flex;align-items:center;justify-content:center;padding:18px;}
+  .product-badges{position:absolute;top:14px;left:14px;display:flex;gap:8px;flex-wrap:wrap;}
+  .wishlist{position:absolute;top:14px;right:14px;width:38px;height:38px;border-radius:50%;border:none;background:rgba(255,255,255,.95);color:var(--rose);font-size:1rem;box-shadow:0 6px 18px rgba(17,31,56,.12);}
+  .product-body{padding:18px;}
+  .product-name{margin:0 0 8px;font:700 1.02rem/1.3 'Source Sans 3', sans-serif;color:#263044;}
+  .meta{color:var(--muted);font-size:.84rem;}
+  .price-row{display:flex;align-items:end;gap:10px;margin:14px 0 8px;flex-wrap:wrap;}
+  .price-now{font:700 1.55rem/1 'Source Sans 3', sans-serif;color:var(--brand-navy);}
+  .price-old{color:#9a8e81;font-size:.95rem;text-decoration:line-through;}
+  .price-off{color:var(--danger);font:700 .83rem/1 'Montserrat', sans-serif;}
+  .rating{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:.84rem;margin-bottom:14px;}
+  .stars{color:var(--gold);letter-spacing:.08em;}
+
+  .feature-shell{display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;}
+  .gallery-box,.buy-box{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:28px;box-shadow:var(--shadow-sm);}
+  .gallery-box{padding:24px;}
+  .gallery-stage{aspect-ratio:1/1;border-radius:22px;background:linear-gradient(145deg,#fff,#f5ede4);display:flex;align-items:center;justify-content:center;padding:22px;}
+  .thumbs{display:flex;gap:12px;flex-wrap:wrap;margin-top:16px;}
+  .thumb{width:76px;height:76px;border-radius:18px;background:#fff;border:2px solid var(--line);padding:8px;display:flex;align-items:center;justify-content:center;}
+  .thumb.active{border-color:var(--amber);box-shadow:0 8px 16px rgba(232,118,10,.16);}
+  .buy-box{padding:28px;display:grid;gap:18px;}
+  .buy-box .brand-tag{color:var(--rose);font:700 .8rem/1 'Montserrat', sans-serif;letter-spacing:.12em;text-transform:uppercase;}
+  .buy-box h3{margin:0;font:700 2rem/1.15 'Playfair Display', serif;color:var(--brand-navy-deep);}
+  .buy-box .price-panel{background:linear-gradient(135deg,#fffaf4,#f8ece0);border:1px solid var(--line);border-radius:22px;padding:20px;}
+  .buy-box .price-panel strong{display:block;color:var(--muted);font:700 .78rem/1 'Montserrat', sans-serif;letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px;}
+  .buy-price{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
+  .buy-price .currency{font:700 1rem/1 'Montserrat', sans-serif;color:var(--brand-navy);}
+  .buy-price .amount{font:700 2.35rem/1 'Source Sans 3', sans-serif;color:var(--brand-navy);}
+  .buy-price .compare{color:#9a8e81;text-decoration:line-through;font-size:1rem;}
+  .stock-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+  .stock-dot{width:10px;height:10px;border-radius:50%;background:var(--danger);}
+  .stock-row strong{color:var(--danger);font:700 1rem/1 'Source Sans 3', sans-serif;}
+  .urgency{flex:1;min-width:140px;height:7px;border-radius:999px;background:#ecd9d1;overflow:hidden;}
+  .urgency span{display:block;height:100%;width:28%;background:linear-gradient(90deg,var(--danger),var(--amber));}
+  .qty{display:flex;align-items:center;gap:14px;}
+  .stepper{display:inline-flex;align-items:center;border:2px solid var(--line);border-radius:14px;overflow:hidden;background:#fff;}
+  .stepper button,.stepper span{width:44px;height:44px;border:none;background:none;font:700 1rem/1 'Montserrat', sans-serif;color:var(--brand-navy);display:grid;place-items:center;}
+  .trust-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+  .trust{padding:14px;border:1px solid var(--line);border-radius:18px;background:#fff;text-align:center;}
+  .trust strong{display:block;color:var(--brand-navy);font:700 .9rem/1.2 'Montserrat', sans-serif;}
+  .trust span{display:block;color:var(--muted);font-size:.8rem;margin-top:6px;}
+
+  .checkout-shell{display:grid;grid-template-columns:1.12fr .88fr;gap:22px;}
+  .field-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;}
+  .field{display:grid;gap:8px;}
+  .field label{color:var(--brand-navy);font:700 .84rem/1 'Montserrat', sans-serif;letter-spacing:.06em;text-transform:uppercase;}
+  .field input,.field select,.field textarea{
+    width:100%;padding:14px 15px;border-radius:14px;border:1px solid #d9cfc4;background:#fff;color:var(--text);font:500 1rem/1.4 'Source Sans 3', sans-serif;
+  }
+  .field textarea{min-height:118px;resize:vertical;}
+  .order-line{display:flex;justify-content:space-between;gap:16px;padding:10px 0;border-bottom:1px solid var(--line);}
+  .order-line:last-child{border-bottom:none;padding-bottom:0;}
+  .order-total{display:flex;justify-content:space-between;gap:16px;margin-top:14px;padding-top:14px;border-top:2px solid var(--line);font:700 1.14rem/1 'Montserrat', sans-serif;color:var(--brand-navy);}
+
+  .rule-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;}
+  .rule-card h3{margin:0 0 10px;color:var(--brand-navy);font:700 1.1rem/1.2 'Montserrat', sans-serif;}
+  .rule-card p{margin:0;color:#3f4758;}
+  .rule-card strong{color:var(--amber);}
+
+  .footer-note{padding:0 0 48px;color:#5d6472;text-align:center;}
+  .footer-note a{color:var(--brand-navy);font-weight:700;}
+
+  @media (max-width: 1080px){
+    .hero-grid,.feature-shell,.checkout-shell,.grid-2,.card-grid,.rule-grid,.swatch-grid{grid-template-columns:1fr 1fr;}
+    .grid-4,.hero-metrics,.trust-grid,.field-grid{grid-template-columns:1fr 1fr;}
+  }
+  @media (max-width: 760px){
+    .header-inner{flex-wrap:wrap;}
+    .header-search,.brand{min-width:100%;}
+    .hero-grid,.feature-shell,.checkout-shell,.grid-2,.grid-3,.grid-4,.card-grid,.rule-grid,.swatch-grid,.hero-metrics,.trust-grid,.field-grid{grid-template-columns:1fr;}
+    .hero-card,.panel,.spec-card,.demo-card,.rule-card,.checkout-card,.mini-card,.gallery-box,.buy-box{padding:20px;}
+    .hero-title{max-width:none;}
+    .section-head{align-items:start;flex-direction:column;}
+    .buy-box h3{font-size:1.6rem;}
+  }
+</style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK"/>
+        <div class="brand-copy">
+          <strong>Watercolor.LK</strong>
+          <span>Premium art supplies for fast conversion</span>
+        </div>
+      </a>
+      <div class="header-search">
+        <span>Search</span>
+        <input type="text" placeholder="Search brushes, sketchbooks, papers, SKU..."/>
+      </div>
+      <nav class="header-links">
+        <a href="#typography">Type</a>
+        <a href="#cards">Cards</a>
+        <a class="pill" href="#checkout">Checkout</a>
+      </nav>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-card">
+          <span class="eyebrow">Review Direction</span>
+          <h1 class="hero-title">Premium, conversion-first ecommerce for Watercolor.LK</h1>
+          <p class="hero-copy">This page demonstrates the proposed design language before it is applied to the real storefront. The direction is built around Montserrat branding, Playfair-led premium hierarchy, Source Sans readability for middle-aged users, warm paper-toned surfaces, trusted navy structure, and amber action cues.</p>
+          <div class="hero-actions">
+            <span class="btn btn-primary">Primary CTA</span>
+            <span class="btn btn-secondary">Secondary Action</span>
+            <span class="btn btn-ghost">Filter / Browse</span>
+          </div>
+          <div class="hero-metrics">
+            <div class="metric"><strong>17px</strong><span>Base body size for clearer reading</span></div>
+            <div class="metric"><strong>3 clicks</strong><span>Target depth from homepage to product</span></div>
+            <div class="metric"><strong>1 page</strong><span>Single review space for all core components</span></div>
+          </div>
+        </div>
+        <div class="hero-side">
+          <div class="panel">
+            <h3>What this review page shows</h3>
+            <ul class="bullet-list">
+              <li>Typography scale for readability and brand tone</li>
+              <li>Color psychology choices for trust, urgency, and creativity</li>
+              <li>Button, badge, and card variants for core shopping flows</li>
+              <li>Product detail and checkout modules with demo content</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>Conversion intent</h3>
+            <ul class="bullet-list">
+              <li>Warm surfaces reduce discount-market fatigue and feel more premium</li>
+              <li>Navy anchors trust and expertise better than generic red-heavy commerce</li>
+              <li>Amber CTAs attract attention without the stress signal of aggressive red</li>
+              <li>Above-the-fold purchase information keeps the click path short</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="typography">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Typography</span>
+            <h2>Readable for adults, premium enough for an art brand</h2>
+          </div>
+          <p>The type system uses <strong>Montserrat</strong> for brand and labels, <strong>Playfair Display</strong> for premium editorial headings, and <strong>Source Sans 3</strong> for product text and buying decisions.</p>
+        </div>
+        <div class="grid-2">
+          <div class="spec-card type-scale">
+            <div class="type-line">
+              <span class="type-label">Display / Hero</span>
+              <div class="display">Art materials presented like a premium retail brand.</div>
+            </div>
+            <div class="type-line">
+              <span class="type-label">Heading Large</span>
+              <div class="heading-lg">Watercolor brushes, sketchbooks, and papers with trust built in.</div>
+            </div>
+            <div class="type-line">
+              <span class="type-label">Heading Medium</span>
+              <div class="heading-md">Shorter click depth. Clearer calls to action.</div>
+            </div>
+            <div class="type-line">
+              <span class="type-label">Body Copy</span>
+              <div class="body-copy">This body style is intentionally set at 17px with generous line height. It should remain comfortable for middle-aged customers comparing brands, understanding product differences, and completing forms without eye strain.</div>
+            </div>
+            <div class="type-line">
+              <span class="type-label">Small / Support Copy</span>
+              <div class="small-copy">SKU, ratings, sold count, delivery notes, and helper text should stay readable, never tiny.</div>
+            </div>
+          </div>
+          <div class="demo-card">
+            <span class="type-label">Recommended Scale</span>
+            <div class="order-line"><span>Hero H1</span><strong>36px desktop / 28px mobile</strong></div>
+            <div class="order-line"><span>Product title</span><strong>22-24px desktop / 18-20px mobile</strong></div>
+            <div class="order-line"><span>Section heading</span><strong>18-20px desktop / 16-18px mobile</strong></div>
+            <div class="order-line"><span>Body paragraph</span><strong>17px desktop / 16px mobile</strong></div>
+            <div class="order-line"><span>Primary price</span><strong>24-28px bold</strong></div>
+            <div class="order-line"><span>CTA text</span><strong>16-17px semibold</strong></div>
+            <div class="order-total"><span>Rule</span><span>No thin font weights in user-facing text</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Colors</span>
+            <h2>Trust-led structure, warm premium background, controlled urgency</h2>
+          </div>
+          <p>The palette avoids commodity red as the brand base. Red is reserved for urgency only. The overall feel is closer to premium stationery and art retail than mass marketplace noise.</p>
+        </div>
+        <div class="swatch-grid">
+          <article class="swatch"><div class="swatch-top" style="background:#1b2d4f"></div><div class="swatch-copy"><strong>Navy Ink</strong><span>#1B2D4F brand trust anchor</span></div></article>
+          <article class="swatch"><div class="swatch-top" style="background:#10203a"></div><div class="swatch-copy"><strong>Deep Navy</strong><span>#10203A structure and footer depth</span></div></article>
+          <article class="swatch"><div class="swatch-top" style="background:#e8760a"></div><div class="swatch-copy"><strong>Amber Fire</strong><span>#E8760A main CTA</span></div></article>
+          <article class="swatch"><div class="swatch-top" style="background:#c4705a"></div><div class="swatch-copy"><strong>Terracotta</strong><span>#C4705A warmth and feature accents</span></div></article>
+          <article class="swatch"><div class="swatch-top" style="background:#c0392b"></div><div class="swatch-copy"><strong>Scarcity Red</strong><span>#C0392B urgency only</span></div></article>
+          <article class="swatch"><div class="swatch-top" style="background:#faf8f5"></div><div class="swatch-copy"><strong>Watercolor Paper</strong><span>#FAF8F5 page atmosphere</span></div></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap grid-2">
+        <div class="spec-card">
+          <span class="type-label">Buttons</span>
+          <div class="button-row">
+            <span class="btn btn-primary">Buy Now</span>
+            <span class="btn btn-secondary">Add to Cart</span>
+            <span class="btn btn-whatsapp">WhatsApp Order</span>
+            <span class="btn btn-ghost">Apply Filter</span>
+            <span class="btn btn-danger">Only 3 Left</span>
+          </div>
+        </div>
+        <div class="spec-card">
+          <span class="type-label">Badges / Chips</span>
+          <div class="chip-row">
+            <span class="chip chip-sale">-24% Sale</span>
+            <span class="chip chip-stock">In Stock</span>
+            <span class="chip chip-new">New Arrival</span>
+            <span class="chip chip-soft">Best for Students</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Categories</span>
+            <h2>Mascots can stay, but inside a cleaner premium frame</h2>
+          </div>
+          <p>The mascots add brand memory. The proposal keeps them, but gives them more breathing room, cleaner spacing, and a calmer premium container.</p>
+        </div>
+        <div class="grid-4">
+          <article class="category-card"><img class="category-icon" src="assets/images/mascots/watercolor-brushes-1.webp" alt="Brushes mascot"/><strong>Brushes</strong><span>Travel, wash, mop, and detail brushes</span></article>
+          <article class="category-card"><img class="category-icon" src="assets/images/mascots/watercolor-papers.webp" alt="Papers mascot"/><strong>Papers</strong><span>Blocks, sheets, and premium cotton surfaces</span></article>
+          <article class="category-card"><img class="category-icon" src="assets/images/mascots/watercolor-paints.webp" alt="Paints mascot"/><strong>Paints</strong><span>Artist-grade tubes, pans, and starter sets</span></article>
+          <article class="category-card"><img class="category-icon" src="assets/images/mascots/watercolor-sktechbooks.webp" alt="Sketchbooks mascot"/><strong>Sketchbooks</strong><span>Premium books for practice and portfolio work</span></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="cards">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Cards</span>
+            <h2>AliExpress conversion logic, without the cheap visual noise</h2>
+          </div>
+          <p>These cards keep the conversion stack tight: image, product name, price, discount, proof, sold count, then action. The whole card can remain clickable in the real storefront.</p>
+        </div>
+        <div class="card-grid">
+          <article class="product-card">
+            <div class="product-media">
+              <div class="product-badges"><span class="chip chip-sale">-18%</span><span class="chip chip-stock">In Stock</span></div>
+              <button class="wishlist" type="button">♡</button>
+              <img src="assets/images/mascots/watercolor-brushes-1.webp" alt="Brush product demo"/>
+            </div>
+            <div class="product-body">
+              <h3 class="product-name">Siccart travel watercolor brush set for studio and outdoor sketching</h3>
+              <div class="meta">SKU: BR-014-TVL</div>
+              <div class="price-row"><span class="price-now">LKR 1,790</span><span class="price-old">LKR 2,190</span><span class="price-off">18% off</span></div>
+              <div class="rating"><span class="stars">★★★★★</span><span>4.9 (31 reviews)</span><span>114 sold</span></div>
+              <span class="btn btn-primary">Add to Cart</span>
+            </div>
+          </article>
+          <article class="product-card">
+            <div class="product-media">
+              <div class="product-badges"><span class="chip chip-new">Featured</span></div>
+              <button class="wishlist" type="button">♡</button>
+              <img src="assets/images/mascots/watercolor-papers.webp" alt="Paper product demo"/>
+            </div>
+            <div class="product-body">
+              <h3 class="product-name">100% cotton cold press watercolor block with balanced tooth and lift</h3>
+              <div class="meta">Free delivery over LKR 5,000</div>
+              <div class="price-row"><span class="price-now">LKR 3,490</span><span class="price-old">LKR 3,990</span><span class="price-off">12% off</span></div>
+              <div class="rating"><span class="stars">★★★★★</span><span>4.8 (22 reviews)</span><span>52 sold</span></div>
+              <span class="btn btn-secondary">View Details</span>
+            </div>
+          </article>
+          <article class="product-card">
+            <div class="product-media">
+              <div class="product-badges"><span class="chip chip-sale">Only 7 left</span></div>
+              <button class="wishlist" type="button">♡</button>
+              <img src="assets/images/mascots/watercolor-sktechbooks.webp" alt="Sketchbook product demo"/>
+            </div>
+            <div class="product-body">
+              <h3 class="product-name">Premium hardbound sketchbook with lay-flat spine for urban sketching</h3>
+              <div class="meta">Ideal for gifting and portfolio use</div>
+              <div class="price-row"><span class="price-now">LKR 2,990</span><span class="price-old">LKR 3,390</span><span class="price-off">Save LKR 400</span></div>
+              <div class="rating"><span class="stars">★★★★★</span><span>4.7 (18 reviews)</span><span>39 sold</span></div>
+              <span class="btn btn-primary">Buy Now</span>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Product Detail</span>
+            <h2>Price, trust, and purchase controls stay above the fold</h2>
+          </div>
+          <p>This layout keeps the buying decision immediate: brand, product name, proof, price, urgency, quantity, and action buttons are all visible without forcing the user through long copy first.</p>
+        </div>
+        <div class="feature-shell">
+          <div class="gallery-box">
+            <div class="gallery-stage">
+              <img src="assets/images/mascots/watercolor-paints.webp" alt="Paint gallery demo"/>
+            </div>
+            <div class="thumbs">
+              <div class="thumb active"><img src="assets/images/mascots/watercolor-paints.webp" alt="Thumb one"/></div>
+              <div class="thumb"><img src="assets/images/mascots/watercolor-papers.webp" alt="Thumb two"/></div>
+              <div class="thumb"><img src="assets/images/mascots/watercolor-assesries.webp" alt="Thumb three"/></div>
+            </div>
+          </div>
+          <div class="buy-box">
+            <span class="brand-tag">Winsor &amp; Newton / Artist Grade</span>
+            <h3>Professional watercolor starter set curated for confident first purchases</h3>
+            <div class="rating"><span class="stars">★★★★★</span><span>5.0 rated by 47 buyers</span><span>126 sold</span></div>
+            <div class="price-panel">
+              <strong>Price including tax</strong>
+              <div class="buy-price"><span class="currency">LKR</span><span class="amount">8,490</span><span class="compare">9,990</span></div>
+              <div class="small-copy" style="margin-top:8px;">Island-wide delivery available. Free shipping over LKR 5,000.</div>
+            </div>
+            <div class="stock-row">
+              <span class="stock-dot"></span>
+              <strong>Only 7 left in stock</strong>
+              <div class="urgency"><span></span></div>
+            </div>
+            <div class="qty">
+              <strong style="color:var(--brand-navy);font:700 .92rem/1 'Montserrat', sans-serif;letter-spacing:.08em;text-transform:uppercase;">Quantity</strong>
+              <div class="stepper"><button type="button">-</button><span>1</span><button type="button">+</button></div>
+            </div>
+            <div class="button-row">
+              <span class="btn btn-primary" style="flex:1">Buy Now</span>
+              <span class="btn btn-secondary" style="flex:1">Add to Cart</span>
+            </div>
+            <span class="btn btn-whatsapp">WhatsApp Order</span>
+            <div class="trust-grid">
+              <div class="trust"><strong>Secure checkout</strong><span>Server-side processing only</span></div>
+              <div class="trust"><strong>Fast delivery</strong><span>Island-wide dispatch support</span></div>
+              <div class="trust"><strong>Trusted sourcing</strong><span>Curated art supply focus</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="checkout">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">Checkout</span>
+            <h2>Simple forms, visible order summary, lower friction</h2>
+          </div>
+          <p>The checkout direction assumes guest-first ordering, short forms, clear validation, and a persistent summary. The visual treatment should feel calm, not transactional or cold.</p>
+        </div>
+        <div class="checkout-shell">
+          <div class="checkout-card">
+            <span class="type-label">Delivery details</span>
+            <div class="field-grid">
+              <div class="field"><label>First name</label><input type="text" value="Dinu"/></div>
+              <div class="field"><label>Last name</label><input type="text" value="Madusanka"/></div>
+              <div class="field"><label>Mobile number</label><input type="text" value="077 123 4567"/></div>
+              <div class="field"><label>City</label><select><option>Colombo</option></select></div>
+              <div class="field" style="grid-column:1 / -1"><label>Street address</label><input type="text" value="123 Flower Road, Colombo 07"/></div>
+              <div class="field" style="grid-column:1 / -1"><label>Order note</label><textarea>Gift wrap this item and confirm dispatch by WhatsApp.</textarea></div>
+            </div>
+            <div class="button-row" style="margin-top:18px;">
+              <span class="btn btn-primary">Continue to Payment</span>
+              <span class="btn btn-ghost">Guest Checkout</span>
+            </div>
+          </div>
+          <div class="checkout-card">
+            <span class="type-label">Order summary</span>
+            <div class="order-line"><span>Professional watercolor starter set</span><strong>LKR 8,490</strong></div>
+            <div class="order-line"><span>Delivery</span><strong>Free</strong></div>
+            <div class="order-line"><span>Savings applied</span><strong style="color:var(--success);">- LKR 1,500</strong></div>
+            <div class="order-total"><span>Total</span><span>LKR 8,490</span></div>
+            <div class="mini-card" style="margin-top:18px;">
+              <span class="type-label">Trust microcopy</span>
+              <p style="margin:0;color:#374056;">Payment and customer data stay on the server side. No forced account creation before purchase.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <span class="eyebrow">UX Rules</span>
+            <h2>These are the rules I would carry into future development</h2>
+          </div>
+          <p>This turns your brand and conversion requirements into repeatable UI constraints so future features stay consistent instead of drifting page by page.</p>
+        </div>
+        <div class="rule-grid">
+          <article class="rule-card"><h3>Readable first</h3><p><strong>17px body text</strong> is the default. No thin weights for product descriptions, forms, filters, or legal text.</p></article>
+          <article class="rule-card"><h3>Trust before urgency</h3><p>Navy structure leads. <strong>Red appears only for scarcity</strong>, low stock, and real urgency cues.</p></article>
+          <article class="rule-card"><h3>Short click depth</h3><p>Homepage to category to product should stay within <strong>2 to 3 clicks</strong>. Full purchase path should stay lean.</p></article>
+          <article class="rule-card"><h3>Whole card is clickable</h3><p>Product cards act like single tap targets. Users should not hunt for tiny text links to continue shopping.</p></article>
+          <article class="rule-card"><h3>Proof near price</h3><p>Ratings, sold count, trust cues, and delivery notes sit close to the price and CTA, not buried in tabs.</p></article>
+          <article class="rule-card"><h3>Guest-first checkout</h3><p>Account creation should not block orders. Offer it after the transaction, not before it.</p></article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <div class="wrap footer-note">
+    Review page only. If approved, this direction can be applied into <a href="index.html">the listing page</a> and the product detail flow next.
+  </div>
+</body>
+</html>

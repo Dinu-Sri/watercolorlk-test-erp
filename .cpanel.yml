@@ -20,6 +20,7 @@ deployment:
     - /bin/cp -R admin $DEPLOYPATH/admin
     - /bin/cp -R scripts $DEPLOYPATH/scripts
     - /bin/cp bootstrap.php $DEPLOYPATH/bootstrap.php
+    - /bin/cp design-system.html $DEPLOYPATH/design-system.html
     - /bin/cp index.php $DEPLOYPATH/index.php
     - /bin/cp product.php $DEPLOYPATH/product.php
     - /bin/cp schema.sql $DEPLOYPATH/schema.sql
