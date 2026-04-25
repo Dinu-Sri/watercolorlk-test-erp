@@ -244,12 +244,20 @@ if ($isDbReviewFeed) {
 }
 
 $searchSeed = trim((string)($_GET['q'] ?? ''));
+$scriptDir = str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/')));
+$baseHref = rtrim($scriptDir, '/');
+if ($baseHref === '') {
+    $baseHref = '/';
+} else {
+    $baseHref .= '/';
+}
 ?>
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <base href="<?= htmlspecialchars($baseHref, ENT_QUOTES) ?>">
     <title><?= $product ? htmlspecialchars((string)$product['name']) : 'Product not found' ?> | Watercolor.LK</title>
     <link rel="icon" type="image/webp" href="assets/images/brand/favicon-watercolorlk.webp">
     <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -8,6 +8,13 @@ $repo = new ProductRepository(appDb());
 $initialQuery = trim((string)($_GET['q'] ?? ''));
 $products = $repo->listProducts($initialQuery, 24, 0);
 $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
+$scriptDir = str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/')));
+$baseHref = rtrim($scriptDir, '/');
+if ($baseHref === '') {
+    $baseHref = '/';
+} else {
+    $baseHref .= '/';
+}
 
 function productUrl(string $slug, int $erpId): string
 {
@@ -24,6 +31,7 @@ function productUrl(string $slug, int $erpId): string
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <base href="<?= htmlspecialchars($baseHref, ENT_QUOTES) ?>">
     <title>Watercolor.LK | Premium Art Supplies</title>
     <link rel="icon" type="image/webp" href="assets/images/brand/favicon-watercolorlk.webp">
     <link rel="preconnect" href="https://fonts.googleapis.com">
