@@ -1,0 +1,9 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=$HOME/public_html/api
+    - /bin/mkdir -p $DEPLOYPATH
+    - /bin/cp -R API_REFERENCE.md $DEPLOYPATH
+    - /bin/cp -R erp-proxy.php $DEPLOYPATH
+    - /bin/cp -R index.html $DEPLOYPATH
+    - /bin/cp -R product.html $DEPLOYPATH
