@@ -104,20 +104,15 @@ function runDbSchema(): array
     }
 
     $pdo = appDb();
-    $pdo->beginTransaction();
+    $statements = splitSqlStatements($sql);
 
-    try {
-        $statements = splitSqlStatements($sql);
-        foreach ($statements as $statement) {
-            if (trim($statement) === '') {
-                continue;
-            }
-            $pdo->exec($statement);
+    // MySQL can implicitly commit on DDL (CREATE TABLE), so do not wrap schema
+    // execution in an explicit transaction.
+    foreach ($statements as $statement) {
+        if (trim($statement) === '') {
+            continue;
         }
-        $pdo->commit();
-    } catch (Throwable $e) {
-        $pdo->rollBack();
-        throw $e;
+        $pdo->exec($statement);
     }
 
     return [
