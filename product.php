@@ -1401,6 +1401,30 @@ function initReviewSlider() {
 
 initReviewSlider();
 <?php endif; ?>
+
+<?php if ($product): ?>
+/* ===== Persist recently-viewed for homepage rail ===== */
+(function() {
+    try {
+        const item = {
+            erp_product_id: <?= (int)$product['erp_product_id'] ?>,
+            display_name: <?= json_encode((string)$product['name']) ?>,
+            slug: <?= json_encode((string)($product['slug'] ?? '')) ?>,
+            image_url: <?= json_encode((string)($product['image_url'] ?? '')) ?>,
+            price: <?= json_encode((float)$product['price']) ?>,
+            stock_qty: <?= json_encode((float)$product['stock_qty']) ?>,
+            ts: Date.now()
+        };
+        const key = 'wlk_recently_viewed';
+        let list = [];
+        try { list = JSON.parse(localStorage.getItem(key) || '[]'); } catch (e) { list = []; }
+        list = list.filter(x => x && x.erp_product_id !== item.erp_product_id);
+        list.unshift(item);
+        list = list.slice(0, 12);
+        localStorage.setItem(key, JSON.stringify(list));
+    } catch (e) { /* ignore */ }
+})();
+<?php endif; ?>
 </script>
 </body>
 </html>

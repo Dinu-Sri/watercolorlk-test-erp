@@ -243,6 +243,89 @@ SQL;
         return null;
     }
 
+    public function listFlashDeals(int $limit = 8): array
+    {
+        $sql = <<<SQL
+SELECT p.id, p.erp_product_id, p.sku, p.name,
+       COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
+       COALESCE(NULLIF(po.override_title, ''), p.name) AS display_name,
+       COALESCE(po.override_image_url, p.image_url) AS image_url,
+       COALESCE(po.override_price, p.price) AS price,
+       p.price AS original_price,
+       p.stock_qty,
+       p.category_name,
+       p.brand_name,
+       COALESCE(po.override_badge, '') AS badge,
+       CASE
+            WHEN po.override_price IS NOT NULL AND p.price > 0 AND po.override_price < p.price
+                THEN ((p.price - po.override_price) / p.price) * 100
+            ELSE 0
+       END AS discount_pct
+FROM products p
+LEFT JOIN product_overrides po ON po.product_id = p.id
+WHERE p.is_active = 1
+  AND p.stock_qty > 0
+  AND (
+        (po.override_price IS NOT NULL AND po.override_price < p.price)
+        OR p.stock_qty <= 12
+  )
+ORDER BY discount_pct DESC, p.stock_qty ASC, p.updated_at DESC
+LIMIT :limit
+SQL;
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll();
+        return array_map(fn(array $row): array => $this->hydrateSeoSlug($row), $rows);
+    }
+
+    public function listBestSellers(int $limit = 10): array
+    {
+        $sql = <<<SQL
+SELECT p.id, p.erp_product_id, p.sku, p.name,
+       COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
+       COALESCE(NULLIF(po.override_title, ''), p.name) AS display_name,
+       COALESCE(po.override_image_url, p.image_url) AS image_url,
+       COALESCE(po.override_price, p.price) AS price,
+       p.stock_qty,
+       p.category_name,
+       p.brand_name,
+       COALESCE(po.override_badge, '') AS badge
+FROM products p
+LEFT JOIN product_overrides po ON po.product_id = p.id
+WHERE p.is_active = 1 AND p.stock_qty > 0
+ORDER BY p.stock_qty DESC, p.updated_at DESC
+LIMIT :limit
+SQL;
+        $stmt = $this->db->prepare($sql);
+        $stmt->bindValue(':limit', $limit, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = $stmt->fetchAll();
+        return array_map(fn(array $row): array => $this->hydrateSeoSlug($row), $rows);
+    }
+
+    public function listCategoriesWithCounts(array $categoryKeywords): array
+    {
+        $results = [];
+        $sql = <<<SQL
+SELECT COUNT(*) AS cnt
+FROM products
+WHERE is_active = 1
+  AND (
+        LOWER(COALESCE(category_name, '')) LIKE LOWER(:kw)
+        OR LOWER(COALESCE(name, '')) LIKE LOWER(:kw)
+  )
+SQL;
+        $stmt = $this->db->prepare($sql);
+        foreach ($categoryKeywords as $key => $keyword) {
+            $stmt->bindValue(':kw', '%' . $keyword . '%', PDO::PARAM_STR);
+            $stmt->execute();
+            $row = $stmt->fetch();
+            $results[$key] = (int)($row['cnt'] ?? 0);
+        }
+        return $results;
+    }
+
     public function listBestSellersByCategory(string $categoryName, int $excludeErpId, int $limit = 4): array
     {
         $sql = <<<SQL
