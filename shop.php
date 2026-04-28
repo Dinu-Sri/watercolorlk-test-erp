@@ -7,7 +7,8 @@ $repo = new ProductRepository(appDb());
 /* Read URL state for SSR-friendly first paint. JS will hydrate filters from URL too. */
 $q          = trim((string)($_GET['q'] ?? ''));
 $page       = max(1, (int)($_GET['page'] ?? 1));
-$perPage    = in_array((int)($_GET['per_page'] ?? 24), [24, 48, 96], true) ? (int)$_GET['per_page'] : 24;
+$rawPerPage = (int)($_GET['per_page'] ?? 24);
+$perPage    = in_array($rawPerPage, [24, 48, 96], true) ? $rawPerPage : 24;
 $sort       = (string)($_GET['sort'] ?? 'relevance');
 $minPrice   = isset($_GET['min']) && $_GET['min'] !== '' ? (float)$_GET['min'] : '';
 $maxPrice   = isset($_GET['max']) && $_GET['max'] !== '' ? (float)$_GET['max'] : '';
@@ -789,11 +790,14 @@ include __DIR__ . '/partials/site-header.php';
         if (totalPages <= 1) { $pagination.innerHTML = ''; return; }
         var cur = state.page;
         var pages = [];
-        var add = function(p) { pages.push(p); };
+        var seen = {};
+        var add = function(p) { if (!seen[p]) { seen[p] = true; pages.push(p); } };
         add(1);
-        if (cur - 2 > 2) add('...');
-        for (var p = Math.max(2, cur - 1); p <= Math.min(totalPages - 1, cur + 1); p++) add(p);
-        if (cur + 2 < totalPages - 1) add('...');
+        var winStart = Math.max(2, cur - 2);
+        var winEnd   = Math.min(totalPages - 1, cur + 2);
+        if (winStart > 2) pages.push('...');
+        for (var p = winStart; p <= winEnd; p++) add(p);
+        if (winEnd < totalPages - 1) pages.push('...');
         if (totalPages > 1) add(totalPages);
 
         var html = '';
