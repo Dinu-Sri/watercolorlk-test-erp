@@ -514,7 +514,7 @@ include __DIR__ . '/partials/site-header.php';
         if (s.page > 1) p.set('page', String(s.page));
         if (s.per_page && s.per_page !== 24) p.set('per_page', String(s.per_page));
         var qs = p.toString();
-        var newUrl = 'shop.php' + (qs ? '?' + qs : '');
+        var newUrl = (window.WLK_BASE || '') + 'shop.php' + (qs ? '?' + qs : '');
         if (replace) history.replaceState(s, '', newUrl);
         else history.pushState(s, '', newUrl);
     }
@@ -550,8 +550,7 @@ include __DIR__ . '/partials/site-header.php';
     }
     function productHref(p) {
         var slug = (p.slug && !/^product-\d+$/i.test(p.slug)) ? p.slug : buildSlug(p.display_name || p.name);
-        /* Use the htaccess-rewritten form so the URL is clean and root-anchored. */
-        return 'product/' + encodeURIComponent(slug) + '-' + Number(p.erp_product_id);
+        return (window.WLK_BASE || '') + 'product/' + encodeURIComponent(slug) + '-' + Number(p.erp_product_id);
     }
 
     /* ---------- Render filter rail (used in both desktop and drawer) ---------- */
@@ -863,7 +862,7 @@ include __DIR__ . '/partials/site-header.php';
     function fetchProducts() {
         var seq = ++fetchSeq;
         renderSkeletons();
-        fetch('api/products.php?' + buildQuery() + '&_=' + Date.now())
+        fetch((window.WLK_BASE || '') + 'api/products.php?' + buildQuery() + '&_=' + Date.now())
             .then(function(r) { return r.json(); })
             .then(function(data) {
                 if (seq !== fetchSeq) return;

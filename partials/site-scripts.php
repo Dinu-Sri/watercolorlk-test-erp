@@ -51,14 +51,15 @@
         if (q) p.set('q', q);
         if (extra && extra.category) p.set('category', extra.category);
         if (extra && extra.brand) p.set('brand', extra.brand);
-        return 'shop.php' + (p.toString() ? '?' + p.toString() : '');
+        return (window.WLK_BASE || '') + 'shop.php' + (p.toString() ? '?' + p.toString() : '');
     }
     function logQuery(q) {
         if (!q || q.length < 2) return;
         try {
             var blob = new Blob([JSON.stringify({q: q})], {type: 'application/json'});
-            if (navigator.sendBeacon) navigator.sendBeacon('api/log-search.php', blob);
-            else fetch('api/log-search.php', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({q: q}), keepalive: true});
+            var url = (window.WLK_BASE || '') + 'api/log-search.php';
+            if (navigator.sendBeacon) navigator.sendBeacon(url, blob);
+            else fetch(url, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({q: q}), keepalive: true});
         } catch (_) {}
     }
 
@@ -140,7 +141,7 @@
                     products.forEach(function(p) {
                         var name = p.display_name || p.name || '';
                         var slug = (p.slug && !/^product-\d+$/i.test(p.slug)) ? p.slug : (name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'product');
-                        var url = 'product/' + encodeURIComponent(slug + '-' + Number(p.erp_product_id));
+                        var url = (window.WLK_BASE || '') + 'product/' + encodeURIComponent(slug + '-' + Number(p.erp_product_id));
                         items.push({ type: 'product', q: name, url: url });
                         var img = p.image_url || 'assets/images/brand/logo-watercolorlk.png';
                         html += '<a class="sug-item product" data-i="' + (items.length - 1) + '" href="' + url + '">' +
@@ -166,7 +167,7 @@
         function fetchSuggestions(q) {
             if (q === lastQ) return;
             lastQ = q;
-            fetch('api/search-suggest.php?q=' + encodeURIComponent(q))
+            fetch((window.WLK_BASE || '') + 'api/search-suggest.php?q=' + encodeURIComponent(q))
                 .then(function(r) { return r.json(); })
                 .then(function(data) {
                     if (data && data.success) render(data);
@@ -219,7 +220,7 @@
                 e.preventDefault();
                 var v = input.value.trim();
                 if (v) logQuery(v);
-                window.location.href = v ? ('shop.php?q=' + encodeURIComponent(v)) : 'shop.php';
+                window.location.href = (window.WLK_BASE || '') + 'shop.php' + (v ? '?q=' + encodeURIComponent(v) : '');
             }
         });
         box.addEventListener('mousedown', function(e) {
