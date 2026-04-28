@@ -1194,24 +1194,70 @@ if ($baseHref === '') {
     }
     .btn-wa svg { width: 18px; height: 18px; }
 
-    /* Trust tiles row (right column) */
+    /* Trust tiles row (right column) — compact, clickable */
     .trust-row {
         display: grid; grid-template-columns: repeat(4, minmax(0,1fr));
-        gap: 8px; margin: 14px 0 0;
+        gap: 6px; margin: 12px 0 0;
     }
     .trust-row .ttile {
         background: #fff; border: 1px solid var(--line);
-        border-radius: 14px; padding: 10px 6px;
-        text-align: center;
-        display: flex; flex-direction: column; align-items: center; gap: 6px;
+        border-radius: 10px; padding: 7px 4px;
+        text-align: center; cursor: pointer;
+        display: flex; flex-direction: column; align-items: center; gap: 3px;
+        transition: border-color .15s, transform .15s, box-shadow .15s;
+    }
+    .trust-row .ttile:hover {
+        border-color: var(--amber);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 10px rgba(232,118,10,.15);
     }
     .trust-row .ttile svg {
-        width: 22px; height: 22px; color: var(--amber-deep);
+        width: 18px; height: 18px; color: var(--amber-deep);
     }
     .trust-row .ttile strong {
-        color: var(--brand-navy); font: 800 .72rem/1.1 'Montserrat', sans-serif;
-        letter-spacing: .02em; text-align: center;
+        color: var(--brand-navy); font: 700 .65rem/1.1 'Montserrat', sans-serif;
+        letter-spacing: .01em; text-align: center;
     }
+
+    /* Trust info modal */
+    .trust-modal-backdrop {
+        position: fixed; inset: 0; z-index: 200;
+        background: rgba(16,32,58,.6); backdrop-filter: blur(4px);
+        display: none; align-items: center; justify-content: center;
+        padding: 20px;
+    }
+    .trust-modal-backdrop.is-open { display: flex; }
+    .trust-modal {
+        max-width: 460px; width: 100%;
+        background: #fff; border-radius: 18px;
+        box-shadow: 0 30px 80px rgba(16,32,58,.4);
+        overflow: hidden;
+        animation: tmIn .25s ease;
+    }
+    @keyframes tmIn { from { transform: translateY(20px); opacity: 0; } to { transform: none; opacity: 1; } }
+    .trust-modal-head {
+        padding: 18px 22px;
+        background: linear-gradient(135deg, var(--amber), var(--amber-deep));
+        color: #fff;
+        display: flex; align-items: center; gap: 12px;
+    }
+    .trust-modal-head svg { width: 28px; height: 28px; }
+    .trust-modal-head h3 {
+        margin: 0; font: 800 1.15rem/1.2 'Playfair Display', serif;
+    }
+    .trust-modal-body {
+        padding: 18px 22px;
+        color: #3a4258; font: 500 .94rem/1.55 'Source Sans 3', sans-serif;
+    }
+    .trust-modal-body ul { margin: 8px 0 0; padding-left: 20px; }
+    .trust-modal-body li { margin: 4px 0; }
+    .trust-modal-close {
+        position: absolute; top: 12px; right: 12px;
+        width: 32px; height: 32px; border-radius: 50%;
+        background: rgba(255,255,255,.25); border: 0; color: #fff;
+        cursor: pointer; font: 700 1.1rem/1 sans-serif;
+    }
+    .trust-modal { position: relative; }
 
     /* Delivery + buyer protection cards */
     .info-card {
@@ -1253,6 +1299,12 @@ if ($baseHref === '') {
         background: rgba(255,255,255,.94); backdrop-filter: blur(10px);
         box-shadow: var(--shadow-sm);
         overflow-x: auto;
+        transition: background .25s ease, box-shadow .25s ease, border-color .25s ease;
+    }
+    .product-tabs.is-stuck {
+        background: linear-gradient(95deg, #b8232f 0%, #e63946 45%, #ff5b3a 75%, #e8760a 100%);
+        border-color: rgba(184,35,47,.4);
+        box-shadow: 0 10px 26px rgba(184,35,47,.28);
     }
     .product-tabs a {
         padding: 9px 16px; border-radius: 10px;
@@ -1262,6 +1314,8 @@ if ($baseHref === '') {
         transition: background .15s, color .15s;
     }
     .product-tabs a:hover { background: rgba(232,118,10,.1); color: var(--amber-deep); }
+    .product-tabs.is-stuck a { color: rgba(255,255,255,.92); }
+    .product-tabs.is-stuck a:hover { background: rgba(255,255,255,.18); color: #fff; }
 
     /* Description / specs */
     .desc-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
@@ -1518,43 +1572,23 @@ include __DIR__ . '/partials/site-header.php';
                 </button>
 
                 <div class="trust-row">
-                    <div class="ttile">
+                    <button class="ttile" type="button" data-trust="returns">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
                         <strong>7-day returns</strong>
-                    </div>
-                    <div class="ttile">
+                    </button>
+                    <button class="ttile" type="button" data-trust="tracking">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h13v10H3zM16 10h4l2 3v4h-6"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
                         <strong>Tracked delivery</strong>
-                    </div>
-                    <div class="ttile">
+                    </button>
+                    <button class="ttile" type="button" data-trust="protection">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
                         <strong>Buyer protection</strong>
-                    </div>
-                    <div class="ttile">
+                    </button>
+                    <button class="ttile" type="button" data-trust="payment">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
                         <strong>Secure payment</strong>
-                    </div>
+                    </button>
                 </div>
-
-                <div class="info-card">
-                    <span class="ic-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h13v10H3zM16 10h4l2 3v4h-6"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
-                    </span>
-                    <div class="ic-body">
-                        <strong>Island-wide delivery</strong>
-                        <span><?= htmlspecialchars($deliveryLabel) ?> — free over LKR 5,000</span>
-                    </div>
-                </div>
-                <a class="info-card payhere" href="https://www.payhere.lk" target="_blank" rel="noopener" style="text-decoration:none;">
-                    <span class="ic-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
-                    </span>
-                    <div class="ic-body">
-                        <strong>Buyer protection by PayHere</strong>
-                        <span>Pay safely — Visa, Mastercard, COD, Bank transfer</span>
-                    </div>
-                    <img class="payhere-mini" src="https://www.payhere.lk/downloads/images/payhere_long_banner.png" alt="PayHere" loading="lazy">
-                </a>
 
                 <div class="meta-inline" style="margin-top:14px;">
                     <span class="meta-pill">Brand: <?= htmlspecialchars((string)($product['brand_name'] ?: 'Watercolor.LK')) ?></span>
@@ -1701,6 +1735,17 @@ include __DIR__ . '/partials/site-header.php';
         </div>
     <?php endif; ?>
 </main>
+
+<div class="trust-modal-backdrop" id="trustModal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="trust-modal">
+        <button class="trust-modal-close" type="button" aria-label="Close" data-trust-close>&times;</button>
+        <div class="trust-modal-head">
+            <span id="tmIcon"></span>
+            <h3 id="tmTitle"></h3>
+        </div>
+        <div class="trust-modal-body" id="tmBody"></div>
+    </div>
+</div>
 
 <?php include __DIR__ . '/partials/site-footer.php'; ?>
 <?php include __DIR__ . '/partials/site-scripts.php'; ?>
@@ -1850,7 +1895,11 @@ function initReviewSlider() {
     let startIndex = 0;
     let totalSteps = 1;
     let autoTimer = null;
-    const getPerPage = () => (window.matchMedia('(max-width: 980px)').matches ? 1 : 2);
+    const getPerPage = () => {
+        if (window.matchMedia('(max-width: 720px)').matches) return 1;
+        if (window.matchMedia('(max-width: 980px)').matches) return 2;
+        return 3;
+    };
 
     const renderWindow = () => {
         const perPage = getPerPage();
@@ -1971,6 +2020,73 @@ document.querySelectorAll('.product-tabs a').forEach((a) => {
         window.scrollTo({ top, behavior: 'smooth' });
     });
 });
+
+/* ===== Sticky tabs: switch to attractive gradient when stuck ===== */
+(function() {
+    const tabs = document.querySelector('.product-tabs');
+    if (!tabs) return;
+    const sentinel = document.createElement('div');
+    sentinel.style.cssText = 'position:absolute;width:1px;height:1px;';
+    tabs.parentNode.insertBefore(sentinel, tabs);
+    const io = new IntersectionObserver(([entry]) => {
+        tabs.classList.toggle('is-stuck', !entry.isIntersecting);
+    }, { rootMargin: '-77px 0px 0px 0px', threshold: 0 });
+    io.observe(sentinel);
+})();
+
+/* ===== Trust-tile info modal ===== */
+(function() {
+    const modal = document.getElementById('trustModal');
+    if (!modal) return;
+    const tIcon = document.getElementById('tmIcon');
+    const tTitle = document.getElementById('tmTitle');
+    const tBody = document.getElementById('tmBody');
+    const data = {
+        returns: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>',
+            title: '7-day returns',
+            body: '<p>Not happy with your order? You have <strong>7 days from delivery</strong> to request a return.</p><ul><li>Item must be unused and in original packaging.</li><li>Refund issued within 3 working days of receiving the return.</li><li>Free pickup for orders over LKR 5,000.</li><li>Damaged or wrong-item orders: full refund or free replacement.</li></ul>'
+        },
+        tracking: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h13v10H3zM16 10h4l2 3v4h-6"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
+            title: 'Tracked delivery, island-wide',
+            body: '<p>Every parcel ships with a courier tracking number sent via WhatsApp + SMS.</p><ul><li>Colombo &amp; suburbs: 1\u20132 working days.</li><li>Other districts: 2\u20133 working days.</li><li>Free delivery on orders over LKR 5,000.</li><li>Same-day dispatch for orders confirmed before 2 PM.</li></ul>'
+        },
+        protection: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/></svg>',
+            title: 'Watercolor.LK Buyer protection',
+            body: '<p>Shop with confidence. Every order is covered by our buyer-protection promise:</p><ul><li><strong>100% authentic products</strong> \u2014 sourced direct from brand or official distributor.</li><li><strong>Money back guarantee</strong> if the item is not as described.</li><li><strong>Secure escrow</strong> via PayHere on card / wallet payments.</li><li>Disputes resolved within 48 hours via WhatsApp support.</li></ul>'
+        },
+        payment: {
+            icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>',
+            title: 'Secure payments',
+            body: '<p>Choose the payment method you trust:</p><ul><li><strong>PayHere</strong> \u2014 Visa, Mastercard, Amex, eZ Cash, mCash, Genie, FriMi.</li><li><strong>Bank transfer</strong> \u2014 Commercial Bank, BOC, Sampath, HNB.</li><li><strong>Cash on Delivery</strong> \u2014 pay when the courier hands over your parcel.</li></ul><p style="margin-top:10px;color:#6b7388;font-size:.86rem;">All card payments are processed by PayHere on a PCI-DSS compliant gateway. Watercolor.LK never stores card data.</p>'
+        }
+    };
+    function open(key) {
+        const d = data[key]; if (!d) return;
+        tIcon.innerHTML = d.icon;
+        tTitle.textContent = d.title;
+        tBody.innerHTML = d.body;
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+    }
+    function close() {
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }
+    document.querySelectorAll('.trust-row .ttile[data-trust]').forEach((b) => {
+        b.addEventListener('click', () => open(b.dataset.trust));
+    });
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal || e.target.closest('[data-trust-close]')) close();
+    });
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && modal.classList.contains('is-open')) close();
+    });
+})();
 <?php endif; ?>
 
 <?php if ($product): ?>
