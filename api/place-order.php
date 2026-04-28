@@ -33,6 +33,33 @@ try {
     }
 
     $db = appDb();
+
+    /* Resolve missing local product_id from erp_product_id when client (e.g. cart) only sends erp_product_id. */
+    $productRepo = new ProductRepository($db);
+    $resolvedItems = [];
+    foreach ($payload['items'] as $item) {
+        if (!isset($item['erp_product_id'])) {
+            JsonResponse::send(['success' => false, 'error' => 'Each item requires erp_product_id'], 422);
+            exit;
+        }
+        if (empty($item['product_id'])) {
+            $row = $productRepo->getByErpId((int)$item['erp_product_id']);
+            if (!$row) {
+                JsonResponse::send(['success' => false, 'error' => 'Unknown product: ' . $item['erp_product_id']], 422);
+                exit;
+            }
+            $item['product_id'] = (int)$row['id'];
+            if (empty($item['sku']) && !empty($row['sku'])) {
+                $item['sku'] = (string)$row['sku'];
+            }
+            if (!isset($item['unit_price']) || $item['unit_price'] === '') {
+                $item['unit_price'] = (float)$row['price'];
+            }
+        }
+        $resolvedItems[] = $item;
+    }
+    $payload['items'] = $resolvedItems;
+
     $orderRepo = new OrderRepository($db);
     $orderId = $orderRepo->createOrder($payload);
 

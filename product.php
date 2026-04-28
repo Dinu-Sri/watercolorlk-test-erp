@@ -1751,14 +1751,7 @@ include __DIR__ . '/partials/site-header.php';
 <?php include __DIR__ . '/partials/site-scripts.php'; ?>
 
 <script>
-const cartButton = document.getElementById('cartButton');
-const headerSearch = document.getElementById('headerSearch');
-if (cartButton) {
-    cartButton.addEventListener('click', (event) => {
-        event.preventDefault();
-        alert('Cart module is coming next.');
-    });
-}
+const headerSearch = document.getElementById('headerSearch') || document.getElementById('search');
 if (headerSearch) {
     headerSearch.addEventListener('keydown', (event) => {
         if (event.key !== 'Enter') return;
@@ -1773,11 +1766,10 @@ const product = {
     erp_product_id: <?= (int)$product['erp_product_id'] ?>,
     sku: <?= json_encode((string)$product['sku']) ?>,
     unit_price: <?= json_encode((float)$product['price']) ?>,
-    name: <?= json_encode((string)$product['name']) ?>
+    name: <?= json_encode((string)$product['name']) ?>,
+    slug: <?= json_encode((string)($product['slug'] ?? '')) ?>,
+    image_url: <?= json_encode((string)($product['image_url'] ?? '')) ?>
 };
-
-let customerName = '';
-let customerPhone = '';
 
 document.querySelectorAll('.thumb').forEach((thumb) => {
     thumb.addEventListener('click', () => {
@@ -1793,66 +1785,30 @@ function changeQty(delta) {
     input.value = String(next);
 }
 
-function ensureBuyerDetails() {
-    if (!customerName) {
-        const name = window.prompt('Enter your full name');
-        if (!name) return false;
-        customerName = name.trim();
-    }
-    if (!customerPhone) {
-        const phone = window.prompt('Enter your phone number');
-        if (!phone) return false;
-        customerPhone = phone.trim();
-    }
-    return true;
-}
-
-async function submitOrder(paymentMethod) {
-    if (!ensureBuyerDetails()) {
-        return;
-    }
-
-    const payload = {
-        customer_name: customerName,
-        customer_phone: customerPhone,
-        customer_email: '',
-        payment_method: paymentMethod,
-        notes: '',
-        items: [
-            {
-                product_id: product.product_id,
-                erp_product_id: product.erp_product_id,
-                sku: product.sku,
-                quantity: Number(document.getElementById('qty').value || 1),
-                unit_price: Number(product.unit_price)
-            }
-        ]
+function getCartItem() {
+    return {
+        erp_product_id: product.erp_product_id,
+        name: product.name,
+        slug: product.slug,
+        image_url: product.image_url,
+        price: product.unit_price,
+        sku: product.sku
     };
-
-    const res = await fetch('api/place-order.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    });
-
-    const data = await res.json();
-    const box = document.getElementById('orderResult');
-
-    if (!data.success) {
-        box.innerHTML = `<span style="color:#ae1c1c">${data.error || 'Order failed'}</span>`;
-        return;
-    }
-
-    const syncMessage = data.erp_sync === 'synced'
-        ? 'Synced to ERP successfully.'
-        : 'Order saved locally and queued for ERP retry.';
-
-    box.innerHTML = `<span style="color:#1f5d23">Order #${data.order_id} created. ${syncMessage}</span>`;
 }
 
 function addToCart() {
+    if (!window.WLKCart) return;
     const qty = Number(document.getElementById('qty').value || 1);
-    document.getElementById('orderResult').innerHTML = `<span style="color:#1f5d23">${qty} item(s) added to cart queue.</span>`;
+    window.WLKCart.add(getCartItem(), qty);
+    window.WLKCart.toast(qty + ' added to cart', { action: { href: 'cart.php', label: 'View cart' } });
+}
+
+function submitOrder(/* paymentMethod */) {
+    if (!window.WLKCart) return;
+    const qty = Number(document.getElementById('qty').value || 1);
+    // Buy Now: jump straight to checkout with this single item (do not lose existing cart)
+    window.WLKCart.add(getCartItem(), qty);
+    window.location.href = 'checkout.php?buynow=' + encodeURIComponent(product.erp_product_id);
 }
 
 function openWhatsAppOrder() {

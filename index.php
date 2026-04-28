@@ -1244,16 +1244,12 @@ const input = document.getElementById('search');
 const suggestions = document.getElementById('suggestions');
 const grid = document.getElementById('grid');
 const resultMeta = document.getElementById('resultMeta');
-const cartButton = document.getElementById('cartButton');
 const initialProducts = <?= $initialProductsJson ?: '[]' ?>;
 let suggestTimer = null;
 let searchTimer = null;
 let requestId = 0;
 
-cartButton.addEventListener('click', (event) => {
-    event.preventDefault();
-    alert('Cart module is coming next.');
-});
+/* Cart icon navigation handled by assets/js/cart.js (sets href="cart.php") */
 
 /* ===== Flash deal countdown (rolls over midnight) ===== */
 (function() {

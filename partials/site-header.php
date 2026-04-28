@@ -44,7 +44,7 @@ $cartCount = isset($cartCount) ? (int)$cartCount : 0;
             <a class="icon-btn" href="admin/index.php" aria-label="Account">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
             </a>
-            <a class="icon-btn" href="#" aria-label="Cart" id="cartButton">
+            <a class="icon-btn" href="cart.php" aria-label="Cart" id="cartButton">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 7H7"/></svg>
                 <span class="pip" id="cartPip"<?= $cartCount > 0 ? '' : ' hidden' ?>><?= $cartCount > 0 ? (int)$cartCount : 0 ?></span>
             </a>

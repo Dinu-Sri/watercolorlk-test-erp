@@ -5,6 +5,7 @@
  * Does NOT bind to the header search input or the cart button — pages handle those.
  */
 ?>
+<script src="assets/js/cart.js?v=1" defer></script>
 <script>
 (function() {
     /* Bottom nav: focus header search */
@@ -16,14 +17,7 @@
             if (s) { s.focus(); s.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
         });
     }
-    const bc = document.getElementById('bottomNavCart');
-    if (bc) {
-        bc.addEventListener('click', (e) => {
-            e.preventDefault();
-            const cb = document.getElementById('cartButton');
-            if (cb) { cb.click(); } else { alert('Cart module is coming next.'); }
-        });
-    }
+    /* Bottom nav cart navigates via cart.js href, no JS needed here. */
 
     /* Promo bar dismiss (resets at next visit naturally if not stored) */
     const pb = document.getElementById('promoBar');
