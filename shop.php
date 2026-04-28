@@ -701,6 +701,8 @@ include __DIR__ . '/partials/site-header.php';
                 if (chips[i]) {
                     chips[i].remove();
                     state.page = 1;
+                    renderChips();        /* update chips instantly — don't wait for fetch */
+                    updateClearButton();
                     applyChange();
                     renderFiltersInto($filters, 'shopFilters');
                     renderFiltersInto($drawerBody, 'drawer');
@@ -884,6 +886,8 @@ include __DIR__ . '/partials/site-header.php';
             .catch(function() {
                 if (seq !== fetchSeq) return;
                 $grid.innerHTML = '<div class="empty"><h2>Network error</h2><p>Check your connection and try again.</p></div>';
+                renderChips();    /* ensure chips always reflect current state even on failure */
+                updateClearButton();
             });
     }
     function debouncedApply() {
