@@ -123,7 +123,7 @@ function normalizeReviewText(string $value): string
         return '';
     }
     if (function_exists('mb_convert_encoding')) {
-        $looksMojibake = preg_match('/(?:Ã.|Â.|â.|à.){2,}/u', $value) === 1;
+        $looksMojibake = preg_match('/(?:Ãƒ.|Ã‚.|Ã¢.|Ã .){2,}/u', $value) === 1;
         if ($looksMojibake) {
             $fixed = @mb_convert_encoding($value, 'UTF-8', 'Windows-1252');
             if (is_string($fixed) && $fixed !== '' && preg_match('//u', $fixed) === 1) {
@@ -181,7 +181,7 @@ function renderDealCard(array $product, ?int $rank = null): string
     if ($saved > 0) {
         $html .= '<div class="deal-save">You save LKR ' . number_format($saved, 0) . '</div>';
     }
-    $html .= '<div class="deal-meta"><span class="stars" aria-label="Rating">★★★★★</span><span class="meta-dot">' . $rating . '</span><span class="meta-dot">' . $sold . '+ sold</span></div>';
+    $html .= '<div class="deal-meta"><span class="stars" aria-label="Rating">â˜…â˜…â˜…â˜…â˜…</span><span class="meta-dot">' . $rating . '</span><span class="meta-dot">' . $sold . '+ sold</span></div>';
     $html .= '<div class="scarcity-bar"><span style="width:' . (int)$scarcityPct . '%"></span></div>';
     $html .= $stockNote;
     $html .= '</div>';
@@ -1030,11 +1030,11 @@ include __DIR__ . '/partials/site-header.php';
                 <a class="btn-secondary" href="#best-sellers">Best sellers &rarr;</a>
             </div>
             <div class="hero-trust">
-                <span><span class="stars">★★★★★</span> <strong style="color:var(--brand-navy)"><?= $avgRating ?></strong>&nbsp;<?= htmlspecialchars($reviewCountLabel) ?></span>
+                <span><span class="stars">â˜…â˜…â˜…â˜…â˜…</span> <strong style="color:var(--brand-navy)"><?= $avgRating ?></strong>&nbsp;<?= htmlspecialchars($reviewCountLabel) ?></span>
                 <span class="sep"></span>
-                <span>🇱🇰 Free delivery > LKR 5,000</span>
+                <span>ðŸ‡±ðŸ‡° Free delivery > LKR 5,000</span>
                 <span class="sep"></span>
-                <span>💳 COD &amp; bank transfer</span>
+                <span>ðŸ’³ COD &amp; bank transfer</span>
             </div>
         </div>
         <div class="hero-art" aria-hidden="true">
@@ -1171,7 +1171,7 @@ include __DIR__ . '/partials/site-header.php';
                 <img src="assets/images/google full logo.svg" alt="Google" onerror="this.style.display='none'">
                 <span class="num"><?= $avgRating ?></span>
                 <div>
-                    <div class="stars" aria-hidden="true">★★★★★</div>
+                    <div class="stars" aria-hidden="true">â˜…â˜…â˜…â˜…â˜…</div>
                     <div class="based">Based on <?= htmlspecialchars($reviewCountLabel) ?></div>
                 </div>
             </div>
@@ -1186,7 +1186,7 @@ include __DIR__ . '/partials/site-header.php';
                 $initial = strtoupper(mb_substr((string)($review['author'] ?? 'A'), 0, 1));
                 $text = htmlspecialchars(normalizeReviewText((string)($review['review_text'] ?? '')));
                 $rating = (float)($review['rating'] ?? 5);
-                $stars = str_repeat('★', (int)round($rating)) . str_repeat('☆', max(0, 5 - (int)round($rating)));
+                $stars = str_repeat('â˜…', (int)round($rating)) . str_repeat('â˜†', max(0, 5 - (int)round($rating)));
                 $displayDate = 'Recently';
                 if (!empty($review['review_date'])) {
                     $ts = strtotime((string)$review['review_date']);
@@ -1240,17 +1240,6 @@ include __DIR__ . '/partials/site-header.php';
 <?php include __DIR__ . '/partials/site-scripts.php'; ?>
 
 <script>
-const input = document.getElementById('search');
-const suggestions = document.getElementById('suggestions');
-const grid = document.getElementById('grid');
-const resultMeta = document.getElementById('resultMeta');
-const initialProducts = <?= $initialProductsJson ?: '[]' ?>;
-let suggestTimer = null;
-let searchTimer = null;
-let requestId = 0;
-
-/* Cart icon navigation handled by assets/js/cart.js (sets href="cart.php") */
-
 /* ===== Flash deal countdown (rolls over midnight) ===== */
 (function() {
     const h = document.getElementById('cdH');
@@ -1274,175 +1263,6 @@ let requestId = 0;
     tick();
     setInterval(tick, 1000);
 })();
-
-updateMeta(initialProducts.length, <?= json_encode($initialQuery !== '' ? ('Results for "' . $initialQuery . '"') : 'Showing latest products') ?>);
-
-input.addEventListener('input', () => {
-    const q = input.value.trim();
-    clearTimeout(suggestTimer);
-    clearTimeout(searchTimer);
-
-    if (q.length < 1) {
-        suggestions.style.display = 'none';
-        renderProducts(initialProducts);
-        updateMeta(initialProducts.length, 'Showing latest products');
-        return;
-    }
-
-    suggestTimer = setTimeout(async () => {
-        const res = await fetch(`api/search.php?q=${encodeURIComponent(q)}`);
-        const data = await res.json();
-        if (!data.success) {
-            suggestions.style.display = 'none';
-            return;
-        }
-        renderSuggestions(data.suggestions || []);
-    }, 140);
-
-    searchTimer = setTimeout(async () => {
-        const current = ++requestId;
-        const res = await fetch(`api/products.php?q=${encodeURIComponent(q)}&per_page=60`);
-        const data = await res.json();
-        if (!data.success) {
-            if (current !== requestId) {
-                return;
-            }
-            grid.innerHTML = `<div class="empty">Search is temporarily unavailable. Please try again.</div>`;
-            return;
-        }
-        if (current !== requestId) {
-            return;
-        }
-        renderProducts(data.products || []);
-        updateMeta((data.products || []).length, `Results for "${q}"`);
-    }, 180);
-});
-
-input.addEventListener('keydown', async (event) => {
-    if (event.key !== 'Enter') return;
-    const q = input.value.trim();
-    const res = await fetch(`api/products.php?q=${encodeURIComponent(q)}&per_page=48`);
-    const data = await res.json();
-    if (!data.success) {
-        grid.innerHTML = `<div class="empty">Search is temporarily unavailable. Please try again.</div>`;
-        return;
-    }
-    const products = data.products || [];
-    renderProducts(products);
-    updateMeta(products.length, `Results for "${q}"`);
-    suggestions.style.display = 'none';
-});
-
-document.addEventListener('click', (event) => {
-    if (event.target !== input && !suggestions.contains(event.target)) {
-        suggestions.style.display = 'none';
-    }
-});
-
-function renderSuggestions(items) {
-    if (!items.length) {
-        suggestions.style.display = 'none';
-        return;
-    }
-
-    suggestions.innerHTML = items.map(item => `
-        <div class="suggestion" onclick="window.location='${buildProductUrl(item)}'">
-            ${escapeHtml(item.name)} - LKR ${Number(item.price).toFixed(2)}
-        </div>
-    `).join('');
-    suggestions.style.display = 'block';
-}
-
-function renderProducts(items) {
-    if (!items.length) {
-        grid.innerHTML = `<div class="empty">No products found for this search. Try another keyword.</div>`;
-        return;
-    }
-
-    grid.innerHTML = items.map(item => {
-        const price = Number(item.price || 0);
-        const orig = price * 1.12;
-        const discountPct = Math.max(8, Math.round(((orig - price) / orig) * 100));
-        const saved = Math.max(0, orig - price);
-        const stock = Number(item.stock_qty || 0);
-        const sold = 80 + ((Number(item.erp_product_id || 0)) % 220);
-        const rating = '4.' + (5 + ((Number(item.erp_product_id || 0)) % 5));
-        const scarcityPct = stock > 0 ? Math.max(8, Math.min(96, 100 - (stock / 30) * 100)) : 100;
-        let stockNote;
-        if (stock <= 0) stockNote = '<div class="scarcity-note out">Sold out</div>';
-        else if (stock <= 7) stockNote = `<div class="scarcity-note hot">Only ${Math.floor(stock)} left</div>`;
-        else stockNote = '<div class="scarcity-note">Selling fast</div>';
-
-        return `
-        <a class="deal-card" href="${buildProductUrl(item)}">
-            <div class="deal-media">
-                <span class="discount-flag">-${discountPct}%</span>
-                <img loading="lazy" src="${item.image_url || 'assets/images/brand/logo-watercolorlk.png'}" alt="${escapeHtml(item.display_name)}">
-            </div>
-            <div class="deal-body">
-                <h3 class="deal-name">${escapeHtml(item.display_name)}</h3>
-                <div class="deal-price-row">
-                    <span class="deal-price">LKR ${price.toLocaleString('en-LK', {maximumFractionDigits: 0})}</span>
-                    <span class="deal-price-old">LKR ${orig.toLocaleString('en-LK', {maximumFractionDigits: 0})}</span>
-                </div>
-                <div class="deal-save">You save LKR ${saved.toLocaleString('en-LK', {maximumFractionDigits: 0})}</div>
-                <div class="deal-meta"><span class="stars">★★★★★</span><span class="meta-dot">${rating}</span><span class="meta-dot">${sold}+ sold</span></div>
-                <div class="scarcity-bar"><span style="width:${scarcityPct}%"></span></div>
-                ${stockNote}
-            </div>
-        </a>`;
-    }).join('');
-}
-
-function buildProductUrl(item) {
-    let slug = String(item.slug || '').trim();
-    if (!slug || /^product-\d+$/i.test(slug)) {
-        const source = String(item.display_name || item.name || '').trim().toLowerCase();
-        slug = source.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    }
-    if (slug !== '') {
-        return `product/${encodeURIComponent(slug)}`;
-    }
-    return `product/${encodeURIComponent(`product-${Number(item.erp_product_id || 0)}`)}`;
-}
-
-function renderTopBadge(item) {
-    const qty = Number(item.stock_qty || 0);
-    if (qty <= 0) {
-        return '<span class="badge sale">Out of stock</span>';
-    }
-    if (qty <= 7) {
-        return `<span class="badge low">Only ${Math.floor(qty)} left</span>`;
-    }
-    if (item.badge) {
-        return `<span class="badge">${escapeHtml(item.badge)}</span>`;
-    }
-    return '<span class="badge">Featured</span>';
-}
-
-function renderStockText(item) {
-    const qty = Number(item.stock_qty || 0);
-    if (qty <= 0) {
-        return 'Out of stock';
-    }
-    if (qty <= 7) {
-        return `Only ${Math.floor(qty)} left in stock`;
-    }
-    return 'In stock';
-}
-
-function updateMeta(count, label) {
-    resultMeta.textContent = `${label} (${count})`;
-}
-
-function escapeHtml(str) {
-    return String(str)
-        .replaceAll('&', '&amp;')
-        .replaceAll('<', '&lt;')
-        .replaceAll('>', '&gt;')
-        .replaceAll('"', '&quot;')
-        .replaceAll("'", '&#039;');
-}
 </script>
 </body>
 </html>

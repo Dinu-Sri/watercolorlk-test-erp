@@ -390,7 +390,13 @@ SQL;
             $catParts = [];
             foreach (array_values($categories) as $i => $cat) {
                 $key = 'cat' . $i;
-                $catParts[] = "LOWER(COALESCE(p.category_name, '')) LIKE LOWER(:$key)";
+                /* Match across category_name AND product name — catalogue category_name is sparse,
+                   so the keyword (e.g. "brush", "paper") is matched against both. */
+                $catParts[] = "(
+                    LOWER(COALESCE(p.category_name, '')) LIKE LOWER(:$key)
+                    OR LOWER(p.name) LIKE LOWER(:$key)
+                    OR LOWER(COALESCE(p.sku, '')) LIKE LOWER(:$key)
+                )";
                 $params[$key] = '%' . $cat . '%';
             }
             $where[] = '(' . implode(' OR ', $catParts) . ')';
@@ -530,6 +536,82 @@ SQL;
             'min' => $row ? (float)($row['min_price'] ?? 0) : 0.0,
             'max' => $row ? (float)($row['max_price'] ?? 0) : 0.0,
         ];
+    }
+
+    /** Lazily ensure the search_queries analytics table exists. */
+    private function ensureSearchQueryTable(): void
+    {
+        static $ensured = false;
+        if ($ensured) return;
+        $this->db->exec(<<<SQL
+CREATE TABLE IF NOT EXISTS search_queries (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    query VARCHAR(190) NOT NULL,
+    query_norm VARCHAR(190) NOT NULL,
+    hits INT UNSIGNED NOT NULL DEFAULT 1,
+    last_searched_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    first_searched_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_norm (query_norm),
+    KEY idx_hits (hits DESC),
+    KEY idx_last (last_searched_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+SQL);
+        $ensured = true;
+    }
+
+    /** Record a user search. Normalised to lowercase + collapsed whitespace for de-dup. */
+    public function logSearchQuery(string $q): void
+    {
+        $q = trim($q);
+        if ($q === '' || mb_strlen($q) > 190) return;
+        $norm = mb_strtolower(preg_replace('/\s+/u', ' ', $q) ?? $q);
+        if ($norm === '') return;
+        try {
+            $this->ensureSearchQueryTable();
+            $stmt = $this->db->prepare(
+                'INSERT INTO search_queries (query, query_norm, hits, last_searched_at, first_searched_at)
+                 VALUES (:q, :n, 1, NOW(), NOW())
+                 ON DUPLICATE KEY UPDATE hits = hits + 1, last_searched_at = NOW()'
+            );
+            $stmt->execute([':q' => $q, ':n' => $norm]);
+        } catch (Throwable $e) {
+            /* analytics must never break user flow */
+        }
+    }
+
+    /**
+     * Top trending searches, optionally filtered by prefix.
+     * @return array<int, array{query:string, hits:int}>
+     */
+    public function getTrendingSearches(string $prefix = '', int $limit = 8): array
+    {
+        try {
+            $this->ensureSearchQueryTable();
+            if ($prefix !== '') {
+                $stmt = $this->db->prepare(
+                    "SELECT query, hits FROM search_queries
+                     WHERE query_norm LIKE :p
+                     ORDER BY hits DESC, last_searched_at DESC
+                     LIMIT :lim"
+                );
+                $stmt->bindValue(':p', mb_strtolower($prefix) . '%', PDO::PARAM_STR);
+                $stmt->bindValue(':lim', max(1, min(20, $limit)), PDO::PARAM_INT);
+            } else {
+                $stmt = $this->db->prepare(
+                    'SELECT query, hits FROM search_queries
+                     ORDER BY hits DESC, last_searched_at DESC
+                     LIMIT :lim'
+                );
+                $stmt->bindValue(':lim', max(1, min(20, $limit)), PDO::PARAM_INT);
+            }
+            $stmt->execute();
+            return array_map(static fn(array $r): array => [
+                'query' => (string)$r['query'],
+                'hits' => (int)$r['hits'],
+            ], $stmt->fetchAll());
+        } catch (Throwable $e) {
+            return [];
+        }
     }
 
     public function saveOverride(int $productId, array $override): void

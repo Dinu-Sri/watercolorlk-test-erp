@@ -28,14 +28,32 @@ $selectedCategories = $splitCsv($_GET['category'] ?? null);
 $selectedBrands     = $splitCsv($_GET['brand'] ?? null);
 
 /* Initial load: fetch products + facets in one go so first paint is correct. */
+$bucketMap = [
+    'Brushes' => 'brush', 'Papers' => 'paper', 'Paints' => 'paint',
+    'Sketchbooks' => 'sketch', 'Accessories' => 'access',
+];
 try {
+    $bucketCounts = $repo->listCategoriesWithCounts($bucketMap);
+    $bucketFacets = [];
+    foreach ($bucketMap as $label => $kw) {
+        $bucketFacets[] = [
+            'label'   => $label,
+            'keyword' => $kw,
+            'count'   => (int)($bucketCounts[$label] ?? 0),
+        ];
+    }
     $facets = [
-        'categories'  => $repo->listAllCategories(),
-        'brands'      => $repo->listAllBrands(),
-        'price_range' => $repo->getPriceRange(),
+        'product_types' => $bucketFacets,
+        'brands'        => $repo->listAllBrands(),
+        'price_range'   => $repo->getPriceRange(),
     ];
 } catch (Throwable $e) {
-    $facets = ['categories' => [], 'brands' => [], 'price_range' => ['min' => 0, 'max' => 10000]];
+    $facets = ['product_types' => [], 'brands' => [], 'price_range' => ['min' => 0, 'max' => 10000]];
+}
+
+/* Log search query for analytics (fire-and-forget; failures swallowed in repo). */
+if ($q !== '' && mb_strlen($q) >= 2) {
+    try { $repo->logSearchQuery($q); } catch (Throwable $e) { /* ignore */ }
 }
 
 try {
@@ -58,9 +76,13 @@ $initialProductsJson = json_encode($result['products'], JSON_UNESCAPED_SLASHES);
 $initialTotal        = (int)$result['total'];
 $facetsJson          = json_encode($facets, JSON_UNESCAPED_SLASHES);
 
+/* Translate keyword bucket values back to friendly labels for SSR strings. */
+$bucketLabelMap = ['brush' => 'Brushes', 'paper' => 'Papers', 'paint' => 'Paints', 'sketch' => 'Sketchbooks', 'access' => 'Accessories'];
+$selectedCategoryLabels = array_map(static fn(string $c): string => $bucketLabelMap[mb_strtolower($c)] ?? $c, $selectedCategories);
+
 $pageTitle = $q !== ''
     ? ('Search: ' . $q . ' - Watercolor.LK')
-    : (!empty($selectedCategories) ? (implode(' & ', $selectedCategories) . ' - Watercolor.LK') : 'Shop all products - Watercolor.LK');
+    : (!empty($selectedCategoryLabels) ? (implode(' & ', $selectedCategoryLabels) . ' - Watercolor.LK') : 'Shop all products - Watercolor.LK');
 
 function shopProductUrl(string $slug, string $name, int $erpId): string
 {
@@ -376,7 +398,7 @@ include __DIR__ . '/partials/site-header.php';
 
 <main class="wrap shop-wrap">
     <nav class="shop-crumb" aria-label="Breadcrumb">
-        <a href="index.php">Home</a><span class="sep">/</span><span>Shop<?= !empty($selectedCategories) ? ' / ' . htmlspecialchars(implode(' & ', $selectedCategories)) : '' ?></span>
+        <a href="index.php">Home</a><span class="sep">/</span><span>Shop<?= !empty($selectedCategoryLabels) ? ' / ' . htmlspecialchars(implode(' & ', $selectedCategoryLabels)) : '' ?></span>
     </nav>
 
     <header class="shop-head">
@@ -384,8 +406,8 @@ include __DIR__ . '/partials/site-header.php';
             <h1 id="shopHeading">
                 <?php if ($q !== ''): ?>
                     Results for <em>"<?= htmlspecialchars($q) ?>"</em>
-                <?php elseif (!empty($selectedCategories)): ?>
-                    <?= htmlspecialchars(implode(' & ', $selectedCategories)) ?>
+                <?php elseif (!empty($selectedCategoryLabels)): ?>
+                    <?= htmlspecialchars(implode(' & ', $selectedCategoryLabels)) ?>
                 <?php else: ?>
                     All products
                 <?php endif; ?>
@@ -393,13 +415,6 @@ include __DIR__ . '/partials/site-header.php';
             <div class="meta" id="shopCount"><?= number_format($initialTotal) ?> products</div>
         </div>
     </header>
-
-    <div class="shop-trust">
-        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h13v10H3zM16 10h4l2 3v4h-6"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg> FREE delivery over LKR 5,000</span>
-        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6z"/></svg> 7-day returns</span>
-        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> Dispatched within 24h</span>
-        <span class="chip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 3.5A10 10 0 0 0 4 16l-1 5 5-1A10 10 0 1 0 20 3.5z"/></svg> WhatsApp support 9am-9pm</span>
-    </div>
 
     <div class="shop-grid">
         <!-- LEFT FILTER RAIL -->
@@ -464,7 +479,7 @@ include __DIR__ . '/partials/site-header.php';
 (function() {
     var INITIAL_PRODUCTS = <?= $initialProductsJson ?: '[]' ?>;
     var INITIAL_TOTAL    = <?= (int)$initialTotal ?>;
-    var FACETS           = <?= $facetsJson ?: '{"categories":[],"brands":[],"price_range":{"min":0,"max":10000}}' ?>;
+    var FACETS           = <?= $facetsJson ?: '{"product_types":[],"brands":[],"price_range":{"min":0,"max":10000}}' ?>;
     var PER_PAGE_DEFAULT = <?= (int)$perPage ?>;
 
     /* ---------- State, sourced from URL ---------- */
@@ -543,19 +558,20 @@ include __DIR__ . '/partials/site-header.php';
         var html = '';
         html += '<div class="filt-head"><h3>Filters</h3><button class="clear-all" type="button" id="' + prefix + 'ClearAll" hidden>Clear all</button></div>';
 
-        /* Categories */
-        if (FACETS.categories && FACETS.categories.length) {
-            html += '<details class="filt-block" open><summary>Category</summary><div class="body"><div class="filt-list" data-list="cat">';
-            FACETS.categories.forEach(function(c) {
-                var checked = state.categories.indexOf(c.name) !== -1 ? 'checked' : '';
-                html += '<label><input type="checkbox" data-filter="category" value="' + escapeHtml(c.name) + '" ' + checked + '><span>' + escapeHtml(c.name) + '</span><span class="cnt">' + c.count + '</span></label>';
+        /* Product Type (keyword buckets — the visible "Categories" filter) */
+        if (FACETS.product_types && FACETS.product_types.length) {
+            html += '<details class="filt-block" open><summary>Product Type</summary><div class="body"><div class="filt-list" data-list="cat">';
+            FACETS.product_types.forEach(function(c) {
+                if (!c.count) return;
+                var checked = state.categories.indexOf(c.keyword) !== -1 ? 'checked' : '';
+                html += '<label><input type="checkbox" data-filter="category" value="' + escapeHtml(c.keyword) + '" ' + checked + '><span>' + escapeHtml(c.label) + '</span><span class="cnt">' + c.count + '</span></label>';
             });
             html += '</div></div></details>';
         }
 
         /* Brands */
         if (FACETS.brands && FACETS.brands.length) {
-            html += '<details class="filt-block" open><summary>Brand</summary><div class="body"><div class="filt-list" data-list="brand">';
+            html += '<details class="filt-block"><summary>Brand</summary><div class="body"><div class="filt-list" data-list="brand">';
             FACETS.brands.forEach(function(b) {
                 var checked = state.brands.indexOf(b.name) !== -1 ? 'checked' : '';
                 html += '<label><input type="checkbox" data-filter="brand" value="' + escapeHtml(b.name) + '" ' + checked + '><span>' + escapeHtml(b.name) + '</span><span class="cnt">' + b.count + '</span></label>';
@@ -648,8 +664,13 @@ include __DIR__ . '/partials/site-header.php';
     /* ---------- Active filter chips ---------- */
     function renderChips() {
         var chips = [];
+        var bucketLabels = {};
+        (FACETS.product_types || []).forEach(function(b) { bucketLabels[b.keyword] = b.label; });
         if (state.q) chips.push({label: 'Search: "' + state.q + '"', remove: function(){ state.q = ''; if ($headerSearch) $headerSearch.value = ''; }});
-        state.categories.forEach(function(c) { chips.push({label: 'Category: ' + c, remove: function(){ state.categories = state.categories.filter(function(x){return x !== c;}); }}); });
+        state.categories.forEach(function(c) {
+            var nice = bucketLabels[c] || c;
+            chips.push({label: nice, remove: function(){ state.categories = state.categories.filter(function(x){return x !== c;}); }});
+        });
         state.brands.forEach(function(b) { chips.push({label: 'Brand: ' + b, remove: function(){ state.brands = state.brands.filter(function(x){return x !== b;}); }}); });
         if (state.min || state.max) chips.push({label: 'Price: ' + (state.min || '0') + ' - ' + (state.max || '∞'), remove: function(){ state.min = ''; state.max = ''; }});
         if (state.in_stock) chips.push({label: 'In stock only', remove: function(){ state.in_stock = false; }});
@@ -781,8 +802,12 @@ include __DIR__ . '/partials/site-header.php';
     /* ---------- Update heading + count ---------- */
     function updateHeading(total) {
         var label = '';
+        var bucketLabels = {};
+        (FACETS.product_types || []).forEach(function(b) { bucketLabels[b.keyword] = b.label; });
         if (state.q) label = 'Results for <em>"' + escapeHtml(state.q) + '"</em>';
-        else if (state.categories.length) label = escapeHtml(state.categories.join(' & '));
+        else if (state.categories.length) {
+            label = escapeHtml(state.categories.map(function(c){ return bucketLabels[c] || c; }).join(' & '));
+        }
         else label = 'All products';
         $heading.innerHTML = label;
         var fmt = Number(total).toLocaleString('en-LK');
@@ -882,6 +907,13 @@ include __DIR__ . '/partials/site-header.php';
         });
         /* signal to global handler that we manage the input here */
         $headerSearch.dataset.shopBound = '1';
+        /* autocomplete may emit a custom submit event when user picks "Search for X" */
+        $headerSearch.addEventListener('wlk:search-submit', function(e) {
+            clearTimeout(searchTimer);
+            state.q = (e.detail && e.detail.q) || '';
+            state.page = 1;
+            applyChange();
+        });
     }
 
     /* ---------- Mobile drawer ---------- */
