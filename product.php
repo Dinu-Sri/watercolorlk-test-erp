@@ -191,6 +191,9 @@ if ($product && $slug === '' && $erpId > 0 && !headers_sent()) {
 $stock = $product ? (float)$product['stock_qty'] : 0;
 $stockPercent = $stock <= 0 ? 0 : min(100, max(12, (int)($stock * 10)));
 $isOutOfStock = $stock <= 0;
+$waButtonText = $isOutOfStock
+    ? 'Ask support when this item will be back in stock'
+    : 'Get more info and order through WhatsApp';
 
 $today = new DateTimeImmutable('today');
 $deliveryStart = addWorkingDays($today, 2);
@@ -1192,7 +1195,7 @@ if ($baseHref === '') {
         font: 700 .98rem/1.2 'Source Sans 3', sans-serif;
         display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     }
-    .btn-wa svg { width: 18px; height: 18px; }
+    .btn-wa img { width: 18px; height: 18px; display: block; }
 
     /* Trust tiles row (right column) — compact, clickable */
     .trust-row {
@@ -1566,9 +1569,9 @@ include __DIR__ . '/partials/site-header.php';
                     <button class="btn-buy" onclick="submitOrder('payhere')" <?= $isOutOfStock ? 'disabled' : '' ?>>Buy Now — Checkout</button>
                     <button class="btn-cart" type="button" onclick="addToCart()" <?= $isOutOfStock ? 'disabled' : '' ?>>Add to Cart</button>
                 </div>
-                <button class="btn-wa" type="button" onclick="openWhatsAppOrder()" <?= $isOutOfStock ? 'disabled' : '' ?>>
-                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 3.5A10 10 0 0 0 4 16l-1 5 5-1A10 10 0 1 0 20 3.5z"/></svg>
-                    WhatsApp Order
+                <button class="btn-wa" type="button" onclick="openWhatsAppOrder()">
+                    <img src="assets/images/whatsapp-svgrepo-com.svg" alt="" aria-hidden="true">
+                    <?= htmlspecialchars($waButtonText) ?>
                 </button>
 
                 <div class="trust-row">
@@ -1814,7 +1817,11 @@ function submitOrder(/* paymentMethod */) {
 
 function openWhatsAppOrder() {
     const qty = Number(document.getElementById('qty').value || 1);
-    const text = encodeURIComponent(`Hi Watercolor.LK, I want to order ${product.name} (Qty: ${qty}).`);
+    const text = encodeURIComponent(
+        <?= $isOutOfStock
+            ? '`Hi Watercolor.LK support team, ' . '${product.name}' . ' is out of stock. Can you let me know when it will be available again? I want to place an order.`'
+            : '`Hi Watercolor.LK, I need more info about ' . '${product.name}' . ' and want to place an order (Qty: ' . '${qty}' . ').`' ?>
+    );
     window.open(`https://wa.me/94700000000?text=${text}`, '_blank');
 }
 
