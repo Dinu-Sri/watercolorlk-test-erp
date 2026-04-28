@@ -1108,7 +1108,7 @@ include __DIR__ . '/partials/site-header.php';
                 $count = (int)($categoryCounts[$c['key']] ?? 0);
             ?>
                 <a class="category-card" href="shop.php?category=<?= urlencode($c['q']) ?>">
-                    <img class="category-icon" src="<?= htmlspecialchars($c['img']) ?>" alt="<?= htmlspecialchars($c['key']) ?>" loading="lazy">
+                    <img class="category-icon" src="<?= htmlspecialchars($c['img']) ?>" alt="<?= htmlspecialchars($c['key']) ?>" loading="lazy" onerror="this.onerror=null;this.src='assets/images/mascots/watercolor-brushes-1.webp';">
                     <strong><?= htmlspecialchars($c['key']) ?></strong>
                     <?php if ($count > 0): ?><span><?= $count ?> products</span><?php endif; ?>
                 </a>
