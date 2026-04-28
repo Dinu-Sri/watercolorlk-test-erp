@@ -991,95 +991,448 @@ if ($baseHref === '') {
             .best-grid { grid-template-columns: 1fr; }
         }
     </style>
+<?php include __DIR__ . '/partials/chrome-styles.php'; ?>
+<style>
+    /* ===== Product page — AliExpress-style overrides ===== */
+    .product-hero {
+        margin: 14px 0 20px;
+        background:
+            radial-gradient(circle at 92% 12%, rgba(232,118,10,.16), transparent 42%),
+            radial-gradient(circle at 6% 90%, rgba(196,112,90,.18), transparent 48%),
+            linear-gradient(135deg, #fffdfa 0%, #fdf3e6 100%);
+        border: 1px solid var(--line);
+        border-radius: var(--radius-lg);
+        padding: 22px;
+        box-shadow: var(--shadow-sm);
+    }
+    .breadcrumbs {
+        display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+        margin: 0 0 14px;
+        font: 600 .82rem/1 'Montserrat', sans-serif;
+        color: #6b7388;
+    }
+    .breadcrumbs a { color: var(--brand-navy); text-decoration: none; }
+    .breadcrumbs a:hover { color: var(--amber-deep); }
+    .breadcrumbs .sep { opacity: .5; }
+    .breadcrumbs .current { color: var(--brand-navy-deep); }
+
+    /* Gallery overlays */
+    .gallery-stage { position: relative; }
+    .gallery-badges {
+        position: absolute; inset: 12px 12px auto 12px;
+        display: flex; align-items: flex-start; justify-content: space-between;
+        pointer-events: none; z-index: 2;
+    }
+    .gallery-badges .auth {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(45,122,79,.95); color: #fff;
+        padding: 6px 12px; border-radius: 999px;
+        font: 800 .72rem/1 'Montserrat', sans-serif; letter-spacing: .05em;
+        box-shadow: 0 4px 12px rgba(45,122,79,.35);
+    }
+    .gallery-badges .auth img { width: 14px; height: 14px; }
+    .gallery-badges .discount-flag {
+        background: var(--grad-fire); color: #fff;
+        padding: 8px 14px; border-radius: 10px;
+        font: 800 .82rem/1 'Montserrat', sans-serif; letter-spacing: .03em;
+        box-shadow: 0 6px 16px rgba(230,57,70,.4);
+    }
+    .viewing-pill {
+        position: absolute; left: 14px; bottom: 14px;
+        display: inline-flex; align-items: center; gap: 8px;
+        padding: 7px 12px; border-radius: 999px;
+        background: rgba(27,45,79,.92); color: #fff;
+        font: 700 .76rem/1 'Montserrat', sans-serif; letter-spacing: .03em;
+        box-shadow: 0 4px 12px rgba(0,0,0,.2);
+        z-index: 2;
+    }
+    .viewing-pill .pulse {
+        width: 8px; height: 8px; border-radius: 50%; background: #ff5b3a;
+        position: relative;
+    }
+    .viewing-pill .pulse::before {
+        content: ""; position: absolute; inset: -4px; border-radius: 50%;
+        border: 2px solid #ff5b3a; opacity: .6;
+        animation: pulseRing 1.6s ease-out infinite;
+    }
+
+    /* Right column — purchase box overrides */
+    .deal-flag {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: var(--grad-fire); color: #fff;
+        padding: 6px 12px; border-radius: 8px;
+        font: 800 .76rem/1 'Montserrat', sans-serif; letter-spacing: .04em;
+        margin-right: 8px;
+    }
+    .rating-row .g-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 10px; border-radius: 999px;
+        background: #fff; border: 1px solid var(--line);
+        font: 700 .76rem/1 'Montserrat', sans-serif; color: #4a5468;
+        text-decoration: none;
+    }
+    .rating-row .g-pill img { height: 13px; width: auto; }
+
+    .social-proof {
+        display: grid; grid-template-columns: repeat(3, 1fr);
+        gap: 6px; margin: 10px 0 14px;
+        padding: 10px; border-radius: 14px;
+        background: rgba(232,118,10,.06); border: 1px solid rgba(232,118,10,.16);
+    }
+    .social-proof .stat {
+        display: flex; flex-direction: column; align-items: center; gap: 2px;
+        text-align: center;
+    }
+    .social-proof .stat strong {
+        color: var(--brand-navy); font: 800 1.05rem/1 'Source Sans 3', sans-serif;
+    }
+    .social-proof .stat span {
+        color: #6b7388; font: 600 .7rem/1.1 'Montserrat', sans-serif;
+        letter-spacing: .03em; text-transform: uppercase;
+    }
+    .social-proof .stat .pulse-mini {
+        display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+        background: var(--accent-mint); margin-right: 4px;
+        box-shadow: 0 0 0 4px rgba(45,122,79,.18);
+        animation: livePulse 1.6s ease-in-out infinite;
+    }
+    @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
+
+    .price-hero {
+        background: linear-gradient(135deg,#fffaf4,#f8ece0);
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 16px 18px;
+        margin: 6px 0 12px;
+    }
+    .price-hero .price-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+    .price-hero .price {
+        color: #b8232f; font: 900 2.4rem/1 'Source Sans 3', sans-serif;
+    }
+    .price-hero .price-compare {
+        color: #9a8e81; text-decoration: line-through; font-size: 1.05rem;
+    }
+    .price-hero .save-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        margin-top: 8px; padding: 5px 11px;
+        background: #eaf7ef; color: #17633e; border: 1px solid #b9e0c8;
+        border-radius: 999px;
+        font: 800 .82rem/1.1 'Montserrat', sans-serif;
+    }
+    .price-hero .lowest-30 {
+        display: block; margin-top: 6px;
+        color: #6b7388; font: 600 .76rem/1.2 'Source Sans 3', sans-serif;
+    }
+
+    .deal-countdown {
+        display: flex; align-items: center; gap: 10px;
+        padding: 10px 14px; margin-bottom: 12px;
+        background: linear-gradient(90deg, rgba(230,57,70,.1), rgba(232,118,10,.08));
+        border: 1px solid rgba(230,57,70,.2);
+        border-radius: 14px;
+        font: 700 .9rem/1.2 'Source Sans 3', sans-serif;
+        color: #b8232f;
+    }
+    .deal-countdown .lightning { font-size: 1.2rem; }
+    .deal-countdown .timer {
+        display: inline-flex; gap: 4px; margin-left: auto;
+        font: 800 1rem/1 'Montserrat', sans-serif;
+    }
+    .deal-countdown .timer span {
+        background: #b8232f; color: #fff;
+        padding: 5px 7px; border-radius: 6px;
+        min-width: 28px; text-align: center;
+    }
+
+    /* Scarcity bar — redesigned */
+    .scarcity {
+        margin: 0 0 14px;
+    }
+    .scarcity-line {
+        display: flex; justify-content: space-between; align-items: center;
+        font: 700 .88rem/1.2 'Source Sans 3', sans-serif;
+        margin-bottom: 6px;
+    }
+    .scarcity-line .left { color: #b8232f; display: inline-flex; align-items: center; gap: 6px; }
+    .scarcity-line .left .dot {
+        width: 8px; height: 8px; border-radius: 50%; background: #b8232f;
+        box-shadow: 0 0 0 4px rgba(184,35,47,.15);
+    }
+    .scarcity-line .right { color: #6b7388; font-weight: 600; font-size: .8rem; }
+    .scarcity-track {
+        height: 7px; border-radius: 999px;
+        background: #ecd9d1; overflow: hidden;
+    }
+    .scarcity-track > span {
+        display: block; height: 100%;
+        background: linear-gradient(90deg, var(--danger), var(--amber));
+    }
+
+    /* Buy/cart actions row */
+    .actions-2 {
+        display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px;
+    }
+    .btn-buy {
+        padding: 14px; border-radius: 14px; border: 0; cursor: pointer; color: #fff;
+        background: linear-gradient(180deg, #ff5b3a, #b8232f);
+        font: 800 1.02rem/1.2 'Montserrat', sans-serif; letter-spacing: .03em;
+        box-shadow: 0 8px 20px rgba(184,35,47,.3);
+    }
+    .btn-buy:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-cart {
+        padding: 14px; border-radius: 14px; cursor: pointer;
+        background: #fff; color: var(--brand-navy);
+        border: 2px solid var(--brand-navy);
+        font: 800 1.02rem/1.2 'Montserrat', sans-serif; letter-spacing: .03em;
+    }
+    .btn-cart:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-wa {
+        width: 100%; padding: 12px; border-radius: 14px; border: 0; cursor: pointer; color: #fff;
+        background: #25d366; margin-top: 10px;
+        font: 700 .98rem/1.2 'Source Sans 3', sans-serif;
+        display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-wa svg { width: 18px; height: 18px; }
+
+    /* Trust tiles row (right column) */
+    .trust-row {
+        display: grid; grid-template-columns: repeat(4, minmax(0,1fr));
+        gap: 8px; margin: 14px 0 0;
+    }
+    .trust-row .ttile {
+        background: #fff; border: 1px solid var(--line);
+        border-radius: 14px; padding: 10px 6px;
+        text-align: center;
+        display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
+    .trust-row .ttile svg {
+        width: 22px; height: 22px; color: var(--amber-deep);
+    }
+    .trust-row .ttile strong {
+        color: var(--brand-navy); font: 800 .72rem/1.1 'Montserrat', sans-serif;
+        letter-spacing: .02em; text-align: center;
+    }
+
+    /* Delivery + buyer protection cards */
+    .info-card {
+        margin-top: 14px; padding: 12px 14px;
+        background: #fff; border: 1px solid var(--line);
+        border-radius: 14px;
+        display: flex; align-items: center; gap: 12px;
+    }
+    .info-card .ic-icon {
+        width: 40px; height: 40px; border-radius: 10px;
+        background: linear-gradient(135deg, rgba(232,118,10,.18), rgba(232,118,10,.06));
+        color: var(--amber-deep);
+        display: inline-flex; align-items: center; justify-content: center; flex: 0 0 40px;
+    }
+    .info-card .ic-icon svg { width: 22px; height: 22px; }
+    .info-card .ic-body { flex: 1; min-width: 0; }
+    .info-card .ic-body strong {
+        display: block; color: var(--brand-navy);
+        font: 800 .92rem/1.2 'Montserrat', sans-serif;
+    }
+    .info-card .ic-body span {
+        color: #6b7388; font: 500 .82rem/1.4 'Source Sans 3', sans-serif;
+    }
+    .info-card.payhere {
+        background: linear-gradient(180deg, #fff 0%, #f5f8ff 100%);
+        border-color: #d6dffb;
+    }
+    .info-card.payhere .payhere-mini {
+        height: 22px; width: auto; margin-left: auto;
+    }
+
+    /* Product tabs (anchor scroll) */
+    .product-tabs {
+        position: sticky; top: 76px; z-index: 30;
+        display: flex; gap: 4px;
+        margin: 22px 0 12px;
+        padding: 6px;
+        border: 1px solid var(--line); border-radius: 14px;
+        background: rgba(255,255,255,.94); backdrop-filter: blur(10px);
+        box-shadow: var(--shadow-sm);
+        overflow-x: auto;
+    }
+    .product-tabs a {
+        padding: 9px 16px; border-radius: 10px;
+        text-decoration: none; color: #4a5468;
+        font: 700 .86rem/1 'Montserrat', sans-serif; letter-spacing: .03em;
+        white-space: nowrap;
+        transition: background .15s, color .15s;
+    }
+    .product-tabs a:hover { background: rgba(232,118,10,.1); color: var(--amber-deep); }
+
+    /* Description / specs */
+    .desc-grid { display: grid; grid-template-columns: 1.4fr 1fr; gap: 16px; }
+    .feature-bullets {
+        list-style: none; padding: 0; margin: 12px 0 0;
+        display: grid; gap: 10px;
+    }
+    .feature-bullets li {
+        display: flex; align-items: flex-start; gap: 10px;
+        color: #3a4258; font: 600 .94rem/1.5 'Source Sans 3', sans-serif;
+    }
+    .feature-bullets li::before {
+        content: ""; flex: 0 0 18px; height: 18px; margin-top: 4px;
+        background: var(--amber); border-radius: 50%;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3'><path d='m5 12 5 5L20 7'/></svg>");
+        background-size: 12px; background-repeat: no-repeat; background-position: center;
+    }
+    .specs-list {
+        margin: 0; padding: 0; display: grid; gap: 8px;
+        grid-template-columns: max-content 1fr;
+        column-gap: 16px;
+    }
+    .specs-list dt {
+        color: #6b7388; font: 700 .8rem/1.4 'Montserrat', sans-serif;
+        letter-spacing: .04em; text-transform: uppercase;
+    }
+    .specs-list dd {
+        margin: 0; color: var(--brand-navy);
+        font: 600 .92rem/1.4 'Source Sans 3', sans-serif;
+    }
+
+    /* Reviews — compact, keep logos+icons */
+    .review { min-height: 0 !important; padding: 11px 12px !important; }
+    .review-top { margin-bottom: 5px !important; }
+    .review-avatar { width: 32px !important; height: 32px !important; flex: 0 0 32px !important; }
+    .review-author { font-size: .88rem !important; }
+    .review .r-stars { font-size: 1.05rem !important; margin: 1px 0 4px !important; }
+    .review p { font-size: .92rem !important; line-height: 1.4 !important; }
+    .review-time { font-size: .76rem !important; }
+    @media (min-width: 981px) {
+        .review-grid { grid-template-columns: repeat(3, minmax(0,1fr)) !important; }
+    }
+    .reviews-summary-bars {
+        display: grid; gap: 4px;
+        margin: 8px 0 12px; padding: 10px 14px;
+        background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    }
+    .rbar { display: grid; grid-template-columns: 30px 1fr 36px; align-items: center; gap: 8px; font: 600 .78rem/1 'Montserrat', sans-serif; color: #6b7388; }
+    .rbar .track { height: 6px; background: #f0e6d8; border-radius: 999px; overflow: hidden; }
+    .rbar .track > span { display: block; height: 100%; background: linear-gradient(90deg, var(--gold), var(--amber)); }
+
+    /* Q&A */
+    .qa-list { display: grid; gap: 8px; margin: 10px 0 0; }
+    details.qa-item {
+        border: 1px solid var(--line); border-radius: 12px;
+        background: #fff; padding: 12px 14px;
+        font: 500 .93rem/1.5 'Source Sans 3', sans-serif; color: #3a4258;
+    }
+    details.qa-item summary {
+        cursor: pointer; list-style: none;
+        font: 700 .94rem/1.3 'Montserrat', sans-serif; color: var(--brand-navy);
+        display: flex; align-items: center; gap: 10px;
+    }
+    details.qa-item summary::before {
+        content: "Q"; flex: 0 0 22px; height: 22px;
+        background: var(--amber); color: #fff;
+        border-radius: 50%;
+        display: inline-flex; align-items: center; justify-content: center;
+        font: 800 .76rem/1 'Montserrat', sans-serif;
+    }
+    details.qa-item[open] summary { color: var(--amber-deep); }
+    details.qa-item p { margin: 8px 0 0 32px; }
+
+    /* Best card — deal-card aesthetic */
+    .best-card {
+        position: relative;
+        transition: transform .15s, box-shadow .15s;
+    }
+    .best-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+    .best-card .best-flag {
+        position: absolute; top: 10px; left: 10px; z-index: 2;
+        background: var(--grad-fire); color: #fff;
+        padding: 4px 10px; border-radius: 6px;
+        font: 800 .68rem/1 'Montserrat', sans-serif; letter-spacing: .04em;
+        box-shadow: 0 4px 10px rgba(230,57,70,.3);
+    }
+
+    /* Sticky mobile add-to-cart */
+    .sticky-buy {
+        position: fixed; left: 0; right: 0; bottom: 0;
+        display: none; align-items: center; gap: 10px;
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+        background: rgba(255,255,255,.98); backdrop-filter: blur(14px);
+        border-top: 1px solid var(--line);
+        z-index: 41;
+        box-shadow: 0 -8px 24px rgba(17,31,56,.1);
+    }
+    .sticky-buy img { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; flex: 0 0 42px; border: 1px solid var(--line); }
+    .sticky-buy .sb-info { flex: 1; min-width: 0; }
+    .sticky-buy .sb-info .nm { color: var(--brand-navy); font: 700 .82rem/1.2 'Montserrat', sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .sticky-buy .sb-info .pr { color: #b8232f; font: 800 1rem/1 'Source Sans 3', sans-serif; margin-top: 2px; }
+    .sticky-buy button { padding: 10px 14px; border-radius: 999px; border: 0; cursor: pointer; color: #fff; background: linear-gradient(180deg, #ff5b3a, #b8232f); font: 800 .86rem/1 'Montserrat', sans-serif; letter-spacing: .04em; }
+
+    @media (max-width: 720px) {
+        .product-hero { padding: 14px; }
+        .desc-grid { grid-template-columns: 1fr; }
+        .social-proof { grid-template-columns: 1fr 1fr; }
+        .trust-row { grid-template-columns: 1fr 1fr; }
+        .product-tabs { top: 64px; }
+        .sticky-buy { display: flex; }
+        body { padding-bottom: 144px !important; }
+    }
+</style>
 </head>
 <body>
-<header class="site-header">
-    <div class="wrap header-inner">
-        <a class="brand" href="index.php">
-            <img class="logo" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK">
-            <span class="brand-sub">පටන් ගන්න! පාට කරන්න! ජිවිතය විදින්න!</span>
-        </a>
-        <div class="header-search">
-            <span>Find</span>
-            <input id="headerSearch" class="header-search-input" placeholder="Search products, brands, categories..." autocomplete="off" value="<?= htmlspecialchars($searchSeed) ?>">
-        </div>
-        <div class="header-actions">
-            <a class="icon-btn" href="admin/index.php" aria-label="Account">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
-            </a>
-            <a class="icon-btn" href="#" aria-label="Cart" id="cartButton">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1"/><circle cx="17" cy="20" r="1"/><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 7H7"/></svg>
-            </a>
-        </div>
-    </div>
-</header>
+<?php
+$showPromoBar = false;
+$headerSearchValue = $searchSeed;
+$cartCount = 0;
+include __DIR__ . '/partials/site-header.php';
+?>
 
 <main class="wrap content">
     <?php if (!$product): ?>
         <div class="not-found">Product not found in local catalog. Run sync first.</div>
     <?php else: ?>
+        <?php
+        $currentPrice = (float)$product['price'];
+        $comparePrice = round($currentPrice * 1.12, 2);
+        $savedAmount = max(0.0, $comparePrice - $currentPrice);
+        $savedPercent = $comparePrice > 0 ? (int)round(($savedAmount / $comparePrice) * 100) : 0;
+        $crumbCategory = $categoryName !== '' ? $categoryName : 'Shop';
+        $crumbBrand = (string)($product['brand_name'] ?? '');
+        ?>
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <a href="index.php">Home</a>
+            <span class="sep">›</span>
+            <a href="index.php?q=<?= urlencode($crumbCategory) ?>"><?= htmlspecialchars($crumbCategory) ?></a>
+            <?php if ($crumbBrand !== ''): ?>
+                <span class="sep">›</span>
+                <a href="index.php?q=<?= urlencode($crumbBrand) ?>"><?= htmlspecialchars($crumbBrand) ?></a>
+            <?php endif; ?>
+            <span class="sep">›</span>
+            <span class="current"><?= htmlspecialchars((string)$product['name']) ?></span>
+        </nav>
+
+        <section class="product-hero">
         <section class="layout">
             <div>
                 <div class="gallery">
                     <div class="gallery-stage">
-                        <img id="mainImage" class="main-image" src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$product['name']) ?>">
+                        <div class="gallery-badges">
+                            <span class="auth">
+                                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6z"/></svg>
+                                100% AUTHENTIC
+                            </span>
+                            <?php if ($savedPercent > 0): ?>
+                                <span class="discount-flag">−<?= $savedPercent ?>% TODAY</span>
+                            <?php endif; ?>
+                        </div>
+                        <img id="mainImage" class="main-image" src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$product['name']) ?>" onerror="this.onerror=null;this.src='assets/images/brand/logo-watercolorlk.png';">
+                        <span class="viewing-pill">
+                            <span class="pulse" aria-hidden="true"></span>
+                            <span id="viewingCount">28</span> people viewing now
+                        </span>
                     </div>
                     <div class="thumbs">
                         <button class="thumb active" type="button" data-src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>"><img src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="thumb"></button>
                         <button class="thumb" type="button" data-src="assets/images/mascots/watercolor-brushes-1.webp"><img src="assets/images/mascots/watercolor-brushes-1.webp" alt="thumb"></button>
                         <button class="thumb" type="button" data-src="assets/images/mascots/watercolor-paints.webp"><img src="assets/images/mascots/watercolor-paints.webp" alt="thumb"></button>
                     </div>
-                </div>
-
-                <div class="module" style="margin-top:16px;">
-                    <div class="reviews-head">
-                        <span class="profile-icon-shell" aria-hidden="true"><img class="profile-icon-logo" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK profile"></span>
-                        <div class="reviews-intro">
-                            <div class="reviews-intro-left">
-                                <img class="google-logo" src="assets/images/google full logo.svg" alt="Google">
-                                <h2>Customer reviews</h2>
-                            </div>
-                            <div class="reviews-intro-right">
-                                <div class="summary-stars"><span class="gold">★★★★★</span><span><?= number_format($ratingValue, 1) ?></span></div>
-                                <div class="based-text">Based on <?= number_format($buyersCount) ?> reviews</div>
-                            </div>
-                        </div>
-                    </div>
-                    <?php if (!$isDbReviewFeed && ($reviewSummary['source'] ?? 'fallback') !== 'google'): ?>
-                        <div style="margin:2px 0 10px;color:#a44d05;font-size:.86rem;">Live Google reviews are not loading yet (<?= htmlspecialchars((string)($reviewSummary['status'] ?? 'UNKNOWN')) ?>).</div>
-                    <?php endif; ?>
-                    <div class="review-slider-shell">
-                        <button class="review-nav" data-review-nav="prev" type="button" aria-label="Previous reviews">‹</button>
-                        <div class="review-grid" id="reviewSlider">
-                        <?php foreach ($reviewItems as $review): ?>
-                            <article class="review">
-                                <div class="review-top">
-                                    <img class="review-avatar" src="<?= htmlspecialchars((string)$review['profile_photo_url']) ?>" alt="reviewer" onerror="this.onerror=null;this.src='<?= htmlspecialchars((string)$review['fallback_photo_url']) ?>';">
-                                    <div class="review-meta">
-                                        <a class="review-author" href="<?= htmlspecialchars((string)($review['author_url'] ?: $googleProfileUrl)) ?>" target="_blank" rel="noopener">
-                                            <span class="name"><?= htmlspecialchars((string)$review['author']) ?></span>
-                                            <img class="g-icon" src="assets/images/google icon for go near user name.svg" alt="Google">
-                                        </a>
-                                        <div class="review-time"><?= htmlspecialchars((string)($review['relative_time'] ?: '1 month ago')) ?></div>
-                                    </div>
-                                </div>
-                                <div class="r-stars"><span><?= str_repeat('★', (int)round((float)$review['rating'])) ?></span><img class="verified" src="assets/images/verification icon.png" alt="Verified" onerror="this.onerror=null;this.src='assets/images/brand/verified-check.svg';"></div>
-                                <?php $text = (string)$review['text']; $isLong = textLength($text) > 140; ?>
-                                <p class="<?= $isLong ? 'truncate' : '' ?>" data-long="<?= $isLong ? '1' : '0' ?>"><?= htmlspecialchars($text) ?></p>
-                                <?php if ($isLong): ?>
-                                    <a class="read-more" href="#" onclick="toggleReviewText(this); return false;">Read more</a>
-                                <?php endif; ?>
-                            </article>
-                        <?php endforeach; ?>
-                        </div>
-                        <button class="review-nav" data-review-nav="next" type="button" aria-label="Next reviews">›</button>
-                    </div>
-                    <a class="review-link" href="<?= htmlspecialchars($googleProfileUrl) ?>" target="_blank" rel="noopener">See more reviews</a>
-                </div>
-
-                <div class="module" style="margin-top:16px;">
-                    <div class="reviews-head"><h2>Product details</h2></div>
-                    <p style="margin:0;color:#4d586f;font-size:.94rem;line-height:1.65;"><?= nl2br(htmlspecialchars((string)$product['description'])) ?></p>
                 </div>
             </div>
 
@@ -1088,31 +1441,54 @@ if ($baseHref === '') {
                     <span class="badge"><?= htmlspecialchars((string)$product['badge']) ?></span>
                 <?php endif; ?>
                 <div class="brand-line"><?= htmlspecialchars($brandLine) ?></div>
-                <h1><?= htmlspecialchars((string)$product['name']) ?></h1>
+                <h1>
+                    <?php if ($savedPercent > 0): ?><span class="deal-flag">⚡ FLASH DEAL</span><?php endif; ?>
+                    <?= htmlspecialchars((string)$product['name']) ?>
+                </h1>
 
                 <div class="rating-row">
                     <span class="stars">★★★★★</span>
-                    <span><?= number_format($ratingValue, 1) ?> rated by <?= number_format($buyersCount) ?> buyers</span>
-                    <span><?= number_format($soldCount) ?> sold</span>
+                    <span><strong><?= number_format($ratingValue, 1) ?></strong> (<?= number_format($buyersCount) ?> reviews)</span>
+                    <a class="g-pill" href="<?= htmlspecialchars($googleProfileUrl) ?>" target="_blank" rel="noopener">
+                        <img src="assets/images/google full logo.svg" alt="Google">
+                        Verified
+                    </a>
                 </div>
 
-                <div class="price-panel">
-                    <span class="price-label">Price including tax</span>
-                    <?php
-                    $currentPrice = (float)$product['price'];
-                    $comparePrice = round($currentPrice * 1.12, 2);
-                    $savedAmount = max(0.0, $comparePrice - $currentPrice);
-                    $savedPercent = $comparePrice > 0 ? (int)round(($savedAmount / $comparePrice) * 100) : 0;
-                    ?>
-                    <span class="price">LKR <?= number_format($currentPrice, 2) ?></span>
-                    <span class="price-compare">LKR <?= number_format($comparePrice, 2) ?></span>
+                <div class="social-proof">
+                    <div class="stat"><strong><?= number_format($soldCount) ?></strong><span>Sold</span></div>
+                    <div class="stat"><strong><span class="pulse-mini"></span><span id="viewingCount2">28</span></strong><span>Viewing now</span></div>
+                    <div class="stat"><strong><?= max(45, (int)round($soldCount * 0.18)) ?></strong><span>Sold this week</span></div>
+                </div>
+
+                <div class="price-hero">
+                    <div class="price-row">
+                        <span class="price">LKR <?= number_format($currentPrice, 2) ?></span>
+                        <?php if ($savedAmount > 0): ?>
+                            <span class="price-compare">LKR <?= number_format($comparePrice, 2) ?></span>
+                        <?php endif; ?>
+                    </div>
                     <?php if ($savedAmount > 0): ?>
-                        <div class="save-strip">You save <strong>LKR <?= number_format($savedAmount, 2) ?></strong> (<?= $savedPercent ?>%) today</div>
+                        <span class="save-pill">✓ You save LKR <?= number_format($savedAmount, 2) ?> (<?= $savedPercent ?>%)</span>
+                        <span class="lowest-30">Lowest price in the last 30 days</span>
                     <?php endif; ?>
                 </div>
 
-                <div class="urgency-row"><span class="dot"></span><span><?= $isOutOfStock ? 'Out of stock' : ('Only ' . (int)$stock . ' left in stock') ?></span></div>
-                <div class="urgency"><span></span></div>
+                <?php if ($savedPercent > 0): ?>
+                <div class="deal-countdown" id="dealCountdown">
+                    <span class="lightning">⚡</span>
+                    <span>Flash deal ends in</span>
+                    <span class="timer"><span id="cdH">00</span><span id="cdM">00</span><span id="cdS">00</span></span>
+                </div>
+                <?php endif; ?>
+
+                <div class="scarcity">
+                    <div class="scarcity-line">
+                        <span class="left"><span class="dot"></span><?= $isOutOfStock ? 'Out of stock' : ('Only ' . (int)$stock . ' left in stock!') ?></span>
+                        <span class="right"><?= max(8, (int)round($soldCount * 0.05)) ?> sold in last 24h</span>
+                    </div>
+                    <div class="scarcity-track"><span style="width: <?= max(8, min(95, $stockPercent)) ?>%"></span></div>
+                </div>
 
                 <div class="purchase-row">
                     <div>
@@ -1132,34 +1508,167 @@ if ($baseHref === '') {
                     </div>
                 </div>
 
-                <div class="meta-inline">
+                <div class="actions-2">
+                    <button class="btn-buy" onclick="submitOrder('payhere')" <?= $isOutOfStock ? 'disabled' : '' ?>>Buy Now — Checkout</button>
+                    <button class="btn-cart" type="button" onclick="addToCart()" <?= $isOutOfStock ? 'disabled' : '' ?>>Add to Cart</button>
+                </div>
+                <button class="btn-wa" type="button" onclick="openWhatsAppOrder()" <?= $isOutOfStock ? 'disabled' : '' ?>>
+                    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 3.5A10 10 0 0 0 4 16l-1 5 5-1A10 10 0 1 0 20 3.5z"/></svg>
+                    WhatsApp Order
+                </button>
+
+                <div class="trust-row">
+                    <div class="ttile">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 4v5h-5"/></svg>
+                        <strong>7-day returns</strong>
+                    </div>
+                    <div class="ttile">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h13v10H3zM16 10h4l2 3v4h-6"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+                        <strong>Tracked delivery</strong>
+                    </div>
+                    <div class="ttile">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
+                        <strong>Buyer protection</strong>
+                    </div>
+                    <div class="ttile">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>
+                        <strong>Secure payment</strong>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <span class="ic-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h13v10H3zM16 10h4l2 3v4h-6"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+                    </span>
+                    <div class="ic-body">
+                        <strong>Island-wide delivery</strong>
+                        <span><?= htmlspecialchars($deliveryLabel) ?> — free over LKR 5,000</span>
+                    </div>
+                </div>
+                <a class="info-card payhere" href="https://www.payhere.lk" target="_blank" rel="noopener" style="text-decoration:none;">
+                    <span class="ic-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/></svg>
+                    </span>
+                    <div class="ic-body">
+                        <strong>Buyer protection by PayHere</strong>
+                        <span>Pay safely — Visa, Mastercard, COD, Bank transfer</span>
+                    </div>
+                    <img class="payhere-mini" src="https://www.payhere.lk/downloads/images/payhere_long_banner.png" alt="PayHere" loading="lazy">
+                </a>
+
+                <div class="meta-inline" style="margin-top:14px;">
                     <span class="meta-pill">Brand: <?= htmlspecialchars((string)($product['brand_name'] ?: 'Watercolor.LK')) ?></span>
                     <span class="meta-pill">Category: <?= htmlspecialchars((string)($product['category_name'] ?: 'Art Supplies')) ?></span>
                     <span class="meta-pill">SKU: <?= htmlspecialchars((string)$product['sku']) ?></span>
                 </div>
-
-                <div class="actions">
-                    <button class="button" onclick="submitOrder('payhere')" <?= $isOutOfStock ? 'disabled' : '' ?>>Buy Now</button>
-                    <button class="button secondary" type="button" onclick="addToCart()" <?= $isOutOfStock ? 'disabled' : '' ?>>Add to Cart</button>
-                </div>
-                <button class="button whatsapp" type="button" onclick="openWhatsAppOrder()" <?= $isOutOfStock ? 'disabled' : '' ?>>WhatsApp Order</button>
-
-                <div class="pay-strip">
-                    <span class="pay-chip">PayHere</span>
-                    <span class="pay-chip">VISA</span>
-                    <span class="pay-chip">Mastercard</span>
-                    <span class="pay-chip">Bank Transfer</span>
-                    <span class="pay-chip">Cash on Delivery</span>
-                </div>
-
-                <div class="trust-grid">
-                    <div class="trust"><strong>Return & refund</strong></div>
-                    <div class="trust"><strong>Delivery Tracking</strong></div>
-                    <div class="trust"><strong>Island-wide Delivery</strong></div>
-                    <div class="trust"><strong>Safe payments</strong></div>
-                </div>
                 <div id="orderResult"></div>
             </aside>
+        </section>
+        </section>
+
+        <nav class="product-tabs" aria-label="Product sections">
+            <a href="#description">Description</a>
+            <a href="#specs">Specifications</a>
+            <a href="#reviews">Reviews (<?= number_format($buyersCount) ?>)</a>
+            <a href="#qa">Q &amp; A</a>
+        </nav>
+
+        <section id="description" class="module">
+            <div class="reviews-head"><h2>Why artists choose this</h2></div>
+            <div class="desc-grid">
+                <div>
+                    <p style="margin:0;color:#4d586f;font-size:.96rem;line-height:1.65;"><?= nl2br(htmlspecialchars((string)$product['description'])) ?></p>
+                    <ul class="feature-bullets">
+                        <li>100% authentic, sourced directly from <?= htmlspecialchars((string)($product['brand_name'] ?: 'official suppliers')) ?>.</li>
+                        <li>Tested and packed by Watercolor.LK artists in Colombo.</li>
+                        <li>Backed by 7-day returns and PayHere buyer protection.</li>
+                    </ul>
+                </div>
+                <div id="specs">
+                    <h3 style="margin:0 0 8px;color:var(--brand-navy-deep);font:700 1.05rem/1.2 'Playfair Display',serif;">Specifications</h3>
+                    <dl class="specs-list">
+                        <dt>Brand</dt><dd><?= htmlspecialchars((string)($product['brand_name'] ?: 'Watercolor.LK')) ?></dd>
+                        <dt>Category</dt><dd><?= htmlspecialchars((string)($product['category_name'] ?: 'Art Supplies')) ?></dd>
+                        <dt>SKU</dt><dd><?= htmlspecialchars((string)$product['sku']) ?></dd>
+                        <dt>Stock</dt><dd><?= $isOutOfStock ? 'Out of stock' : ((int)$stock . ' units') ?></dd>
+                        <dt>Delivery</dt><dd><?= htmlspecialchars($deliveryLabel) ?></dd>
+                    </dl>
+                </div>
+            </div>
+        </section>
+
+        <section id="reviews" class="module" style="margin-top:16px;">
+            <div class="reviews-head">
+                <span class="profile-icon-shell" aria-hidden="true"><img class="profile-icon-logo" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK profile"></span>
+                <div class="reviews-intro">
+                    <div class="reviews-intro-left">
+                        <img class="google-logo" src="assets/images/google full logo.svg" alt="Google">
+                        <h2>Customer reviews</h2>
+                    </div>
+                    <div class="reviews-intro-right">
+                        <div class="summary-stars"><span class="gold">★★★★★</span><span><?= number_format($ratingValue, 1) ?></span></div>
+                        <div class="based-text">Based on <?= number_format($buyersCount) ?> reviews</div>
+                    </div>
+                </div>
+            </div>
+            <?php
+            $bar5 = 78; $bar4 = 16; $bar3 = 4; $bar2 = 1; $bar1 = 1;
+            ?>
+            <div class="reviews-summary-bars">
+                <div class="rbar"><span>5★</span><span class="track"><span style="width:<?= $bar5 ?>%"></span></span><span><?= $bar5 ?>%</span></div>
+                <div class="rbar"><span>4★</span><span class="track"><span style="width:<?= $bar4 ?>%"></span></span><span><?= $bar4 ?>%</span></div>
+                <div class="rbar"><span>3★</span><span class="track"><span style="width:<?= $bar3 ?>%"></span></span><span><?= $bar3 ?>%</span></div>
+                <div class="rbar"><span>2★</span><span class="track"><span style="width:<?= $bar2 ?>%"></span></span><span><?= $bar2 ?>%</span></div>
+                <div class="rbar"><span>1★</span><span class="track"><span style="width:<?= $bar1 ?>%"></span></span><span><?= $bar1 ?>%</span></div>
+            </div>
+            <?php if (!$isDbReviewFeed && ($reviewSummary['source'] ?? 'fallback') !== 'google'): ?>
+                <div style="margin:2px 0 10px;color:#a44d05;font-size:.86rem;">Live Google reviews are not loading yet (<?= htmlspecialchars((string)($reviewSummary['status'] ?? 'UNKNOWN')) ?>).</div>
+            <?php endif; ?>
+            <div class="review-slider-shell">
+                <button class="review-nav" data-review-nav="prev" type="button" aria-label="Previous reviews">‹</button>
+                <div class="review-grid" id="reviewSlider">
+                <?php foreach ($reviewItems as $review): ?>
+                    <article class="review">
+                        <div class="review-top">
+                            <img class="review-avatar" src="<?= htmlspecialchars((string)$review['profile_photo_url']) ?>" alt="reviewer" onerror="this.onerror=null;this.src='<?= htmlspecialchars((string)$review['fallback_photo_url']) ?>';">
+                            <div class="review-meta">
+                                <a class="review-author" href="<?= htmlspecialchars((string)($review['author_url'] ?: $googleProfileUrl)) ?>" target="_blank" rel="noopener">
+                                    <span class="name"><?= htmlspecialchars((string)$review['author']) ?></span>
+                                    <img class="g-icon" src="assets/images/google icon for go near user name.svg" alt="Google">
+                                </a>
+                                <div class="review-time"><?= htmlspecialchars((string)($review['relative_time'] ?: '1 month ago')) ?></div>
+                            </div>
+                        </div>
+                        <div class="r-stars"><span><?= str_repeat('★', (int)round((float)$review['rating'])) ?></span><img class="verified" src="assets/images/verification icon.png" alt="Verified" onerror="this.onerror=null;this.src='assets/images/brand/verified-check.svg';"></div>
+                        <?php $text = (string)$review['text']; $isLong = textLength($text) > 140; ?>
+                        <p class="<?= $isLong ? 'truncate' : '' ?>" data-long="<?= $isLong ? '1' : '0' ?>"><?= htmlspecialchars($text) ?></p>
+                        <?php if ($isLong): ?>
+                            <a class="read-more" href="#" onclick="toggleReviewText(this); return false;">Read more</a>
+                        <?php endif; ?>
+                    </article>
+                <?php endforeach; ?>
+                </div>
+                <button class="review-nav" data-review-nav="next" type="button" aria-label="Next reviews">›</button>
+            </div>
+            <a class="review-link" href="<?= htmlspecialchars($googleProfileUrl) ?>" target="_blank" rel="noopener">Write a review on Google</a>
+        </section>
+
+        <section id="qa" class="module" style="margin-top:16px;">
+            <div class="reviews-head"><h2>Questions &amp; answers</h2></div>
+            <div class="qa-list">
+                <details class="qa-item">
+                    <summary>Is this product 100% authentic?</summary>
+                    <p>Yes — every item is sourced directly from the brand or its official Sri Lankan distributor. We never sell counterfeits. You’re protected by PayHere buyer protection and our 7-day returns.</p>
+                </details>
+                <details class="qa-item">
+                    <summary>How long does delivery take across Sri Lanka?</summary>
+                    <p>Colombo &amp; suburbs: 1–2 working days. Other districts: 2–3 working days. We dispatch within 24 hours of order confirmation. You’ll receive a tracking link via WhatsApp.</p>
+                </details>
+                <details class="qa-item">
+                    <summary>Can I pay cash on delivery?</summary>
+                    <p>Yes. We support PayHere (Visa, Mastercard, eZ Cash, FriMi), bank transfer, and Cash on Delivery island-wide.</p>
+                </details>
+            </div>
         </section>
 
         <section class="best-head">
@@ -1169,8 +1678,9 @@ if ($baseHref === '') {
             <?php if (count($bestSellers) === 0): ?>
                 <div class="module" style="grid-column:1 / -1;">More category products will appear after the next sync.</div>
             <?php else: ?>
-                <?php foreach ($bestSellers as $item): ?>
+                <?php foreach ($bestSellers as $idx => $item): ?>
                     <a class="best-card" href="<?= htmlspecialchars(productUrl((string)($item['slug'] ?? ''), (string)($item['display_name'] ?? ''), (int)$item['erp_product_id'])) ?>">
+                        <?php if ($idx < 2): ?><span class="best-flag">HOT</span><?php endif; ?>
                         <div class="best-media"><img src="<?= htmlspecialchars((string)($item['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$item['display_name']) ?>"></div>
                         <div class="best-body">
                             <h3 class="best-name"><?= htmlspecialchars((string)$item['display_name']) ?></h3>
@@ -1180,8 +1690,20 @@ if ($baseHref === '') {
                 <?php endforeach; ?>
             <?php endif; ?>
         </section>
+
+        <div class="sticky-buy" id="stickyBuy">
+            <img src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="">
+            <div class="sb-info">
+                <div class="nm"><?= htmlspecialchars((string)$product['name']) ?></div>
+                <div class="pr">LKR <?= number_format($currentPrice, 2) ?></div>
+            </div>
+            <button onclick="submitOrder('payhere')" <?= $isOutOfStock ? 'disabled' : '' ?>>Buy now</button>
+        </div>
     <?php endif; ?>
 </main>
+
+<?php include __DIR__ . '/partials/site-footer.php'; ?>
+<?php include __DIR__ . '/partials/site-scripts.php'; ?>
 
 <script>
 const cartButton = document.getElementById('cartButton');
@@ -1400,6 +1922,55 @@ function initReviewSlider() {
 }
 
 initReviewSlider();
+
+/* ===== Flash deal countdown (resets at midnight) ===== */
+(function() {
+    const cd = document.getElementById('dealCountdown');
+    if (!cd) return;
+    const h = document.getElementById('cdH'), m = document.getElementById('cdM'), s = document.getElementById('cdS');
+    function pad(n) { return String(n).padStart(2, '0'); }
+    function tick() {
+        const now = new Date();
+        const end = new Date(); end.setHours(24, 0, 0, 0);
+        let ms = end - now;
+        if (ms < 0) ms = 0;
+        const hh = Math.floor(ms / 3.6e6);
+        const mm = Math.floor((ms % 3.6e6) / 6e4);
+        const ss = Math.floor((ms % 6e4) / 1000);
+        h.textContent = pad(hh); m.textContent = pad(mm); s.textContent = pad(ss);
+    }
+    tick();
+    setInterval(tick, 1000);
+})();
+
+/* ===== Live viewing count flicker ===== */
+(function() {
+    const a = document.getElementById('viewingCount');
+    const b = document.getElementById('viewingCount2');
+    if (!a && !b) return;
+    let n = 22 + Math.floor(Math.random() * 18);
+    function refresh() {
+        n = Math.max(14, Math.min(58, n + (Math.floor(Math.random() * 5) - 2)));
+        if (a) a.textContent = String(n);
+        if (b) b.textContent = String(n);
+    }
+    refresh();
+    setInterval(refresh, 4500);
+})();
+
+/* ===== Smooth tab scroll with sticky header offset ===== */
+document.querySelectorAll('.product-tabs a').forEach((a) => {
+    a.addEventListener('click', (e) => {
+        const id = a.getAttribute('href');
+        if (!id || id.charAt(0) !== '#') return;
+        const target = document.querySelector(id);
+        if (!target) return;
+        e.preventDefault();
+        const offset = 140;
+        const top = target.getBoundingClientRect().top + window.pageYOffset - offset;
+        window.scrollTo({ top, behavior: 'smooth' });
+    });
+});
 <?php endif; ?>
 
 <?php if ($product): ?>
