@@ -52,23 +52,6 @@ try {
 
     $repo = new ProductRepository(appDb());
 
-    /* Back-compat: legacy callers without filters use the simple path. */
-    $hasAdvanced = !empty($filters['categories']) || !empty($filters['brands'])
-        || $filters['min_price'] !== '' || $filters['max_price'] !== ''
-        || $filters['in_stock'] || ($filters['sort'] !== 'relevance')
-        || !empty($_GET['with_facets']);
-
-    if (!$hasAdvanced) {
-        $products = $repo->listProducts($q, $perPage, $offset);
-        JsonResponse::send([
-            'success'  => true,
-            'page'     => $page,
-            'per_page' => $perPage,
-            'products' => $products,
-        ]);
-        exit;
-    }
-
     $result = $repo->searchProducts($filters);
     $payload = [
         'success'  => true,
