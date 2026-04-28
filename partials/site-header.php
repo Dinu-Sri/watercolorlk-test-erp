@@ -13,19 +13,14 @@ $showPromoBar = isset($showPromoBar) ? (bool)$showPromoBar : false;
 $headerSearchValue = isset($headerSearchValue) ? (string)$headerSearchValue : '';
 $cartCount = isset($cartCount) ? (int)$cartCount : 0;
 ?>
-<script>
-/* Compute the public webroot once per page so relative URLs work even when the
-   browser address ends up on /api/<file>.php or any other sub-path. */
-window.WLK_BASE = (function() {
-    var p = location.pathname;
-    /* Strip known subfolders and everything after them so /<root>/api/... -> /<root>/ */
-    var m = p.match(/^(.*?)\/(?:api|admin|scripts)\//i);
-    if (m) return location.origin + m[1] + '/';
-    /* Otherwise drop the filename to get the directory the page is served from */
-    var slash = p.lastIndexOf('/');
-    return location.origin + (slash >= 0 ? p.substring(0, slash + 1) : '/');
-})();
-</script>
+<?php
+/* Compute the public webroot from the server side — reliable regardless of
+   whether the site lives at / or at /api/ or any other subdirectory. */
+$_wlkScriptDir = rtrim(str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'])), '/');
+$_wlkProto     = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$_wlkBase      = $_wlkProto . '://' . $_SERVER['HTTP_HOST'] . $_wlkScriptDir . '/';
+?>
+<script>window.WLK_BASE = <?= json_encode($_wlkBase) ?>;</script>
 <?php if ($showPromoBar): ?>
 <div id="promoBar" class="promo-bar">
     <div class="promo-track">
