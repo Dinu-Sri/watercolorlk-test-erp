@@ -16,6 +16,8 @@ deployment:
     - robots.txt
     - api/
     - assets/
+    - assets/images/
+    - assets/js/
     - partials/
 
     # Config and source code
