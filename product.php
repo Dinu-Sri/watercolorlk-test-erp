@@ -1069,10 +1069,12 @@ if ($baseHref === '') {
     }
     .deal-flag--corner {
         position: absolute;
-        top: 8px;
-        right: 8px;
+        top: 16px;
+        right: 16px;
         margin-right: 0;
         z-index: 3;
+        border: 1px solid rgba(255,255,255,.35);
+        box-shadow: 0 8px 18px rgba(184,35,47,.28);
     }
     .rating-row .g-pill {
         display: inline-flex; align-items: center; gap: 6px;
@@ -1202,8 +1204,7 @@ if ($baseHref === '') {
         font: 700 .98rem/1.2 'Source Sans 3', sans-serif;
         display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     }
-    .btn-wa img { width: 18px; height: 18px; display: block; }
-    .btn-wa .wa-fallback { width: 18px; height: 18px; display: none; }
+    .btn-wa .wa-icon { width: 18px; height: 18px; display: block; flex: 0 0 18px; }
 
     /* Trust tiles row (right column) — compact, clickable */
     .trust-row {
@@ -1578,8 +1579,7 @@ include __DIR__ . '/partials/site-header.php';
                     <button class="btn-cart" type="button" onclick="addToCart()" <?= $isOutOfStock ? 'disabled' : '' ?>>Add to Cart</button>
                 </div>
                 <button class="btn-wa" type="button" onclick="openWhatsAppOrder()">
-                    <img src="assets/images/whatsapp-svgrepo-com.svg" alt="" aria-hidden="true" onerror="this.style.display='none';var fb=this.parentNode.querySelector('.wa-fallback');if(fb){fb.style.display='block';}">
-                    <svg class="wa-fallback" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 3.5A10 10 0 0 0 4 16l-1 5 5-1A10 10 0 1 0 20 3.5z"/></svg>
+                    <svg class="wa-icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M17.47 14.38c-.27-.14-1.59-.78-1.84-.87-.25-.09-.43-.14-.61.14-.18.27-.7.87-.86 1.05-.16.18-.31.2-.58.07-.27-.14-1.12-.41-2.14-1.3-.79-.7-1.33-1.56-1.49-1.83-.16-.27-.02-.42.12-.56.12-.12.27-.31.41-.47.14-.16.18-.27.27-.45.09-.18.05-.34-.02-.47-.07-.14-.61-1.47-.84-2.02-.22-.52-.44-.45-.61-.46h-.52c-.18 0-.47.07-.72.34-.25.27-.95.93-.95 2.27 0 1.34.97 2.63 1.11 2.81.14.18 1.9 2.9 4.61 4.07.65.28 1.15.45 1.54.58.65.21 1.24.18 1.71.11.52-.08 1.59-.65 1.82-1.28.22-.63.22-1.16.16-1.28-.07-.12-.25-.2-.52-.34z"/><path d="M20.52 3.48A11.82 11.82 0 0 0 12.08 0C5.5 0 .16 5.34.16 11.92c0 2.1.55 4.14 1.59 5.95L0 24l6.3-1.65a11.9 11.9 0 0 0 5.78 1.47h.01c6.58 0 11.92-5.34 11.92-11.92 0-3.18-1.24-6.16-3.49-8.42zm-8.44 18.33h-.01a9.9 9.9 0 0 1-5.03-1.37l-.36-.21-3.74.98 1-3.65-.24-.38a9.88 9.88 0 0 1-1.51-5.26c0-5.46 4.44-9.9 9.9-9.9 2.64 0 5.12 1.03 6.99 2.9a9.83 9.83 0 0 1 2.9 6.99c0 5.46-4.44 9.9-9.9 9.9z"/></svg>
                     <?= htmlspecialchars($waButtonText) ?>
                 </button>
 
