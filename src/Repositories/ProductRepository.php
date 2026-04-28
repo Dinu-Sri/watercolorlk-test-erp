@@ -407,8 +407,14 @@ SQL;
             $brandParts = [];
             foreach (array_values($brands) as $i => $brand) {
                 $key = 'brand' . $i;
-                $brandParts[] = "LOWER(COALESCE(p.brand_name, '')) = LOWER(:$key)";
+                /* brand_name is sparse in the catalogue; also match brand keyword inside the
+                   product name so inferred brands (e.g. "Baohong", "Paul Rubens") still filter. */
+                $brandParts[] = "(
+                    LOWER(COALESCE(p.brand_name, '')) = LOWER(:$key)
+                    OR LOWER(p.name) LIKE LOWER(:{$key}_like)
+                )";
                 $params[$key] = $brand;
+                $params[$key . '_like'] = '%' . $brand . '%';
             }
             $where[] = '(' . implode(' OR ', $brandParts) . ')';
         }
@@ -517,6 +523,43 @@ ORDER BY cnt DESC, name ASC
 SQL;
         $stmt = $this->db->query($sql);
         return $stmt ? array_map(static fn(array $r): array => ['name' => (string)$r['name'], 'count' => (int)$r['cnt']], $stmt->fetchAll()) : [];
+    }
+
+    /**
+     * Fallback brand list when products.brand_name is empty.
+     * Counts products whose name contains a known watercolor brand keyword.
+     * Returns same shape as listAllBrands(): [{name, count}, ...] sorted by count DESC.
+     */
+    public function listInferredBrands(): array
+    {
+        /* Curated list of brand keywords seen in this catalogue. Extend as needed. */
+        $brandKeywords = [
+            'Baohong', 'Paul Rubens', 'Winsor & Newton', 'W&N', 'Schmincke', 'Sennelier',
+            'Daniel Smith', 'Holbein', 'Mungyo', 'Phoenix', 'Hahnemühle', 'Arches',
+            'Saunders', 'Maimeri', 'Faber-Castell', 'Caran d\'Ache', 'Royal Talens',
+            'Daler-Rowney', 'Yutang', 'Moyuan', 'Mingxiu', 'Jinghong', 'Mingruixiang',
+            'Sinours', 'Yingxiong', 'Shede', 'Mali', 'Xiangfei', 'Sketchers',
+            'Artsecret', 'Molong', 'Potentate',
+        ];
+
+        $sql = <<<SQL
+SELECT COUNT(*) AS cnt
+FROM products
+WHERE is_active = 1 AND LOWER(name) LIKE LOWER(:kw)
+SQL;
+        $stmt = $this->db->prepare($sql);
+        $out = [];
+        foreach ($brandKeywords as $kw) {
+            $stmt->bindValue(':kw', '%' . $kw . '%', PDO::PARAM_STR);
+            $stmt->execute();
+            $row = $stmt->fetch();
+            $cnt = (int)($row['cnt'] ?? 0);
+            if ($cnt > 0) {
+                $out[] = ['name' => $kw, 'count' => $cnt];
+            }
+        }
+        usort($out, static fn(array $a, array $b): int => $b['count'] <=> $a['count'] ?: strcmp((string)$a['name'], (string)$b['name']));
+        return $out;
     }
 
     /** Min/max effective price across active products. */

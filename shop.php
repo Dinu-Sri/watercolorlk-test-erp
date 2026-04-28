@@ -42,9 +42,13 @@ try {
             'count'   => (int)($bucketCounts[$label] ?? 0),
         ];
     }
+    $brandsList = $repo->listAllBrands();
+    if (empty($brandsList)) {
+        $brandsList = $repo->listInferredBrands();
+    }
     $facets = [
         'product_types' => $bucketFacets,
-        'brands'        => $repo->listAllBrands(),
+        'brands'        => $brandsList,
         'price_range'   => $repo->getPriceRange(),
     ];
 } catch (Throwable $e) {
@@ -115,6 +119,9 @@ function shopProductUrl(string $slug, string $name, int $erpId): string
 <?php include __DIR__ . '/partials/chrome-styles.php'; ?>
 <style>
 .shop-wrap { padding: 18px 0 60px; }
+
+/* Visually-hidden helper for SEO/a11y headings */
+.sr-only { position: absolute !important; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
 /* Breadcrumb + heading */
 .shop-crumb { color: #6b7388; font: 600 .82rem/1 'Source Sans 3', sans-serif; margin-bottom: 6px; }
@@ -397,24 +404,12 @@ include __DIR__ . '/partials/site-header.php';
 ?>
 
 <main class="wrap shop-wrap">
-    <nav class="shop-crumb" aria-label="Breadcrumb">
-        <a href="index.php">Home</a><span class="sep">/</span><span>Shop<?= !empty($selectedCategoryLabels) ? ' / ' . htmlspecialchars(implode(' & ', $selectedCategoryLabels)) : '' ?></span>
-    </nav>
-
-    <header class="shop-head">
-        <div>
-            <h1 id="shopHeading">
-                <?php if ($q !== ''): ?>
-                    Results for <em>"<?= htmlspecialchars($q) ?>"</em>
-                <?php elseif (!empty($selectedCategoryLabels)): ?>
-                    <?= htmlspecialchars(implode(' & ', $selectedCategoryLabels)) ?>
-                <?php else: ?>
-                    All products
-                <?php endif; ?>
-            </h1>
-            <div class="meta" id="shopCount"><?= number_format($initialTotal) ?> products</div>
-        </div>
-    </header>
+    <h1 id="shopHeading" class="sr-only">
+        <?php if ($q !== ''): ?>Results for "<?= htmlspecialchars($q) ?>"
+        <?php elseif (!empty($selectedCategoryLabels)): ?><?= htmlspecialchars(implode(' & ', $selectedCategoryLabels)) ?>
+        <?php else: ?>All products<?php endif; ?>
+    </h1>
+    <div class="sr-only" id="shopCount"><?= number_format($initialTotal) ?> products</div>
 
     <div class="shop-grid">
         <!-- LEFT FILTER RAIL -->
@@ -562,9 +557,9 @@ include __DIR__ . '/partials/site-header.php';
         if (FACETS.product_types && FACETS.product_types.length) {
             html += '<details class="filt-block" open><summary>Product Type</summary><div class="body"><div class="filt-list" data-list="cat">';
             FACETS.product_types.forEach(function(c) {
-                if (!c.count) return;
                 var checked = state.categories.indexOf(c.keyword) !== -1 ? 'checked' : '';
-                html += '<label><input type="checkbox" data-filter="category" value="' + escapeHtml(c.keyword) + '" ' + checked + '><span>' + escapeHtml(c.label) + '</span><span class="cnt">' + c.count + '</span></label>';
+                var disabled = (c.count <= 0) ? ' disabled' : '';
+                html += '<label' + (c.count <= 0 ? ' style="opacity:.45"' : '') + '><input type="checkbox" data-filter="category" value="' + escapeHtml(c.keyword) + '"' + disabled + ' ' + checked + '><span>' + escapeHtml(c.label) + '</span><span class="cnt">' + c.count + '</span></label>';
             });
             html += '</div></div></details>';
         }
@@ -666,7 +661,16 @@ include __DIR__ . '/partials/site-header.php';
         var chips = [];
         var bucketLabels = {};
         (FACETS.product_types || []).forEach(function(b) { bucketLabels[b.keyword] = b.label; });
-        if (state.q) chips.push({label: 'Search: "' + state.q + '"', remove: function(){ state.q = ''; if ($headerSearch) $headerSearch.value = ''; }});
+        if (state.q) chips.push({label: 'Search: "' + state.q + '"', remove: function(){
+            state.q = '';
+            if ($headerSearch) { $headerSearch.value = ''; }
+            /* Also remove ?q= from the URL right away so reload preserves cleared state */
+            try {
+                var u = new URL(window.location.href);
+                u.searchParams.delete('q');
+                window.history.replaceState(null, '', u.toString());
+            } catch (_) {}
+        }});
         state.categories.forEach(function(c) {
             var nice = bucketLabels[c] || c;
             chips.push({label: nice, remove: function(){ state.categories = state.categories.filter(function(x){return x !== c;}); }});
