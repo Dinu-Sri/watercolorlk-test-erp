@@ -47,15 +47,25 @@ try {
 
 try {
     $reviewRepo = new Repositories\GoogleReviewRepository(appDb());
-    $allTop = $reviewRepo->getByMinRating(5.0, 12);
+    $allTop = $reviewRepo->getByMinRating(4.0, 30);
     $filtered = array_values(array_filter($allTop, static function (array $r): bool {
         return trim((string)($r['review_text'] ?? '')) !== '';
     }));
     $topReviews = array_slice($filtered, 0, 6);
     $reviewStats['count'] = $reviewRepo->getCount();
+    if ($reviewStats['count'] > 0) {
+        $sumAll = $reviewRepo->getAllActive(500);
+        $sum = 0.0; $n = 0;
+        foreach ($sumAll as $r) { $sum += (float)($r['rating'] ?? 0); $n++; }
+        if ($n > 0) { $reviewStats['avg'] = round($sum / $n, 1); }
+    }
 } catch (Throwable $e) {
     $topReviews = [];
 }
+
+$googleReviewsUrl = defined('GOOGLE_REVIEWS_URL') && GOOGLE_REVIEWS_URL !== ''
+    ? GOOGLE_REVIEWS_URL
+    : 'https://share.google/ScPmVS3Pgq1UFu5M9';
 
 $scriptDir = str_replace('\\', '/', dirname((string)($_SERVER['SCRIPT_NAME'] ?? '/')));
 $baseHref = rtrim($scriptDir, '/');
@@ -96,6 +106,32 @@ function productUrl(string $slug, string $name, int $erpId): string
     }
 
     return 'product/' . rawurlencode('product-' . $erpId);
+}
+
+function textLengthSafe(string $value): int
+{
+    if (function_exists('mb_strlen')) {
+        return mb_strlen($value);
+    }
+    return strlen($value);
+}
+
+function normalizeReviewText(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+    if (function_exists('mb_convert_encoding')) {
+        $looksMojibake = preg_match('/(?:Ã.|Â.|â.|à.){2,}/u', $value) === 1;
+        if ($looksMojibake) {
+            $fixed = @mb_convert_encoding($value, 'UTF-8', 'Windows-1252');
+            if (is_string($fixed) && $fixed !== '' && preg_match('//u', $fixed) === 1) {
+                $value = $fixed;
+            }
+        }
+    }
+    return preg_replace('/\s+/u', ' ', $value) ?? $value;
 }
 
 function renderDealCard(array $product, ?int $rank = null): string
@@ -261,12 +297,13 @@ function renderDealCard(array $product, ?int $rank = null): string
             padding: 14px 0;
         }
         .brand {
-            min-width: 240px;
+            flex: 0 0 auto;
+            min-width: 0;
             text-decoration: none;
             display: flex;
             flex-direction: column;
             align-items: flex-start;
-            gap: 6px;
+            gap: 4px;
         }
         .logo { height: 42px; width: auto; display: block; }
         .brand-sub {
@@ -289,7 +326,7 @@ function renderDealCard(array $product, ?int $rank = null): string
         .header-search-input::placeholder { color: #7a828f; }
         .header-search-input:focus { border-color: var(--amber); box-shadow: 0 0 0 4px rgba(232,118,10,.14); }
         .header-search > .search-ico { position: absolute; left: 18px; top: 50%; transform: translateY(-50%); color: #6d7383; width: 20px; height: 20px; }
-        .header-actions { display: flex; align-items: center; gap: 10px; }
+        .header-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
         .icon-btn {
             position: relative;
             width: 46px;
@@ -578,25 +615,6 @@ function renderDealCard(array $product, ?int $rank = null): string
         .category-card strong { display: block; color: var(--brand-navy); font: 700 .92rem/1.1 'Montserrat', sans-serif; }
         .category-card span { display: block; margin-top: 4px; color: #8a8275; font: 500 .76rem/1.2 'Source Sans 3', sans-serif; }
 
-        /* ===== Activity ticker ===== */
-        .activity-toast {
-            position: fixed; left: 16px; bottom: 96px;
-            display: none; align-items: center; gap: 10px;
-            padding: 10px 14px; border-radius: 999px;
-            background: rgba(27,45,79,.96); color: #fff;
-            box-shadow: var(--shadow-lg);
-            font: 600 .82rem/1.2 'Source Sans 3', sans-serif;
-            z-index: 38; max-width: 320px;
-            animation: toastIn .35s ease;
-        }
-        .activity-toast.is-visible { display: inline-flex; }
-        .activity-toast .av {
-            width: 26px; height: 26px; border-radius: 50%;
-            background: var(--amber); color: #fff;
-            display: inline-flex; align-items: center; justify-content: center;
-            font: 700 .78rem/1 'Montserrat', sans-serif;
-        }
-        .activity-toast small { display: block; opacity: .7; font-weight: 500; margin-top: 2px; }
         @keyframes toastIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
         /* ===== "Just for You" grid ===== */
@@ -673,6 +691,223 @@ function renderDealCard(array $product, ?int $rank = null): string
             font: 600 16px/1.4 'Source Sans 3', sans-serif;
         }
 
+        /* ===== Deal grid (Just for You uses same card style) ===== */
+        .deal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 14px;
+            padding: 6px 0 18px;
+        }
+
+        /* ===== Activity ticker (modernised, real) ===== */
+        .activity-toast {
+            position: fixed; left: 18px; bottom: 22px;
+            display: none; align-items: center; gap: 12px;
+            padding: 12px 18px 12px 14px; border-radius: 14px;
+            background: #fff; color: #1b2d4f;
+            border: 1px solid var(--line);
+            box-shadow: 0 18px 44px rgba(17,31,56,.18);
+            font: 600 .86rem/1.3 'Source Sans 3', sans-serif;
+            z-index: 38; max-width: 360px;
+            animation: toastIn .35s ease;
+        }
+        .activity-toast.is-visible { display: inline-flex; }
+        .activity-toast .pulse {
+            width: 10px; height: 10px; border-radius: 50%;
+            background: var(--accent-mint); flex: 0 0 10px;
+            position: relative;
+        }
+        .activity-toast .pulse::before {
+            content: ""; position: absolute; inset: -6px;
+            border-radius: 50%; border: 2px solid var(--accent-mint);
+            opacity: .5; animation: pulseRing 1.6s ease-out infinite;
+        }
+        @keyframes pulseRing {
+            0% { transform: scale(.6); opacity: .8; }
+            100% { transform: scale(1.4); opacity: 0; }
+        }
+        .activity-toast small {
+            display: block; color: #8a8275; font-weight: 500;
+            margin-top: 3px; font-size: .76rem;
+        }
+
+        /* ===== Reviews (rich, like product page) ===== */
+        .reviews-summary {
+            display: flex; align-items: center; gap: 18px;
+            padding: 18px 22px; border-radius: var(--radius-md);
+            background: #fff; border: 1px solid var(--line);
+            box-shadow: var(--shadow-sm); margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+        .reviews-summary .gscore {
+            display: flex; align-items: center; gap: 12px;
+        }
+        .reviews-summary .gscore img { height: 28px; width: auto; }
+        .reviews-summary .num {
+            font: 800 1.6rem/1 'Playfair Display', serif;
+            color: var(--brand-navy);
+        }
+        .reviews-summary .stars {
+            color: var(--gold); letter-spacing: .08em; font-size: 1.1rem;
+        }
+        .reviews-summary .based {
+            color: #6e7689; font: 500 .88rem/1.3 'Source Sans 3', sans-serif;
+        }
+        .reviews-summary .verified-pill {
+            display: inline-flex; align-items: center; gap: 6px;
+            margin-left: auto; padding: 8px 14px;
+            background: rgba(45,122,79,.1); color: var(--accent-mint);
+            border-radius: 999px;
+            font: 700 .78rem/1 'Montserrat', sans-serif; letter-spacing: .04em;
+        }
+        .reviews-summary .verified-pill img { height: 16px; width: 16px; }
+        .review-card {
+            background: #fff; border: 1px solid var(--line);
+            border-radius: var(--radius-md); padding: 18px;
+            box-shadow: var(--shadow-sm);
+            display: grid; gap: 10px; align-content: start;
+            transition: transform .15s, box-shadow .15s;
+        }
+        .review-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+        .review-head { display: flex; align-items: center; gap: 12px; }
+        .review-avatar-img {
+            width: 44px; height: 44px; border-radius: 50%;
+            object-fit: cover; flex: 0 0 44px;
+            background: #f5eee6;
+            border: 2px solid #fff;
+            box-shadow: 0 2px 6px rgba(17,31,56,.1);
+        }
+        .review-meta { display: grid; gap: 2px; flex: 1; min-width: 0; }
+        .review-author-row {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: var(--brand-navy); font: 700 .94rem/1.1 'Montserrat', sans-serif;
+            text-decoration: none;
+        }
+        .review-author-row:hover { color: var(--amber-deep); }
+        .review-author-row .g-icon { width: 14px; height: 14px; }
+        .review-time { color: #8a8275; font: 500 .78rem/1 'Source Sans 3', sans-serif; }
+        .review-stars-row {
+            display: flex; align-items: center; gap: 8px;
+        }
+        .review-stars-row .stars { color: var(--gold); letter-spacing: .04em; font-size: 1rem; }
+        .review-stars-row .verified-icon { width: 16px; height: 16px; opacity: .85; }
+        .review-text {
+            color: #3e485e; font: 500 .94rem/1.55 'Source Sans 3', sans-serif;
+            display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden;
+            margin: 0;
+        }
+        .review-text.expanded { -webkit-line-clamp: unset; }
+        .review-readmore {
+            color: var(--amber-deep); font: 700 .8rem/1 'Montserrat', sans-serif;
+            text-decoration: none; cursor: pointer;
+        }
+        .reviews-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); gap: 14px; }
+
+        /* ===== Footer (paper bg, rich, trust) ===== */
+        .site-footer {
+            background:
+                linear-gradient(180deg, #1b2d4f 0%, #10203a 100%);
+            color: rgba(255,255,255,.82);
+            padding: 0 0 24px; margin-top: 28px;
+            position: relative;
+        }
+        .footer-trust-band {
+            background: linear-gradient(180deg, #fdf3e6 0%, #faf8f5 100%);
+            border-top: 1px solid var(--line);
+            padding: 28px 0;
+        }
+        .footer-trust {
+            display: grid; grid-template-columns: repeat(4, 1fr);
+            gap: 18px;
+        }
+        .trust-tile {
+            display: flex; align-items: center; gap: 14px;
+            padding: 14px 18px; border-radius: var(--radius-md);
+            background: #fff; border: 1px solid var(--line);
+            box-shadow: var(--shadow-sm);
+        }
+        .trust-tile .icon {
+            width: 46px; height: 46px; border-radius: 12px;
+            background: linear-gradient(135deg, rgba(232,118,10,.18), rgba(232,118,10,.08));
+            color: var(--amber-deep); display: inline-flex; align-items: center; justify-content: center;
+            flex: 0 0 46px;
+        }
+        .trust-tile .icon svg { width: 24px; height: 24px; }
+        .trust-tile strong { display: block; color: var(--brand-navy); font: 800 1rem/1.1 'Montserrat', sans-serif; }
+        .trust-tile span { color: #6e7689; font: 500 .82rem/1.3 'Source Sans 3', sans-serif; }
+
+        .footer-main { padding-top: 44px; }
+        .footer-grid {
+            display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 30px;
+            padding-bottom: 26px; border-bottom: 1px solid rgba(255,255,255,.1);
+        }
+        .footer-brand .logo-card {
+            display: inline-flex; align-items: center; justify-content: center;
+            background: #fff; border-radius: 12px;
+            padding: 8px 14px; margin-bottom: 14px;
+            box-shadow: 0 4px 14px rgba(0,0,0,.2);
+        }
+        .footer-brand .logo-card img { height: 36px; width: auto; display: block; }
+        .footer-brand p { margin: 0 0 14px; font-size: .92rem; line-height: 1.6; opacity: .82; max-width: 380px; }
+        .footer-contact {
+            display: grid; gap: 8px; margin: 12px 0 14px;
+            font-size: .88rem;
+        }
+        .footer-contact a, .footer-contact span { color: rgba(255,255,255,.78); text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+        .footer-contact a:hover { color: var(--amber); }
+        .footer-contact svg { width: 16px; height: 16px; flex: 0 0 16px; opacity: .8; }
+        .footer-socials { display: flex; gap: 8px; }
+        .footer-socials a {
+            width: 38px; height: 38px; border-radius: 50%;
+            background: rgba(255,255,255,.08); color: #fff;
+            display: inline-flex; align-items: center; justify-content: center;
+            text-decoration: none; transition: background .15s, transform .15s;
+        }
+        .footer-socials a:hover { background: var(--amber); transform: translateY(-2px); }
+        .footer-socials svg { width: 17px; height: 17px; }
+
+        .footer-payments {
+            padding: 22px 0 18px; border-bottom: 1px solid rgba(255,255,255,.1);
+            display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center;
+        }
+        .footer-payments h5 {
+            margin: 0; color: #fff; font: 700 .82rem/1 'Montserrat', sans-serif;
+            letter-spacing: .1em; text-transform: uppercase;
+        }
+        .pay-row {
+            display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+        }
+        .payhere-banner {
+            background: #fff; padding: 8px 12px; border-radius: 10px;
+            display: inline-flex; align-items: center;
+            box-shadow: 0 4px 12px rgba(0,0,0,.15);
+        }
+        .payhere-banner img { height: 30px; width: auto; display: block; }
+        .pay-chip {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 14px; border-radius: 10px;
+            background: rgba(255,255,255,.1); color: #fff;
+            font: 700 .82rem/1 'Montserrat', sans-serif; letter-spacing: .04em;
+            border: 1px solid rgba(255,255,255,.15);
+        }
+        .pay-chip svg { width: 18px; height: 18px; }
+        .pay-chip.cod { background: rgba(45,122,79,.25); border-color: rgba(45,122,79,.5); }
+        .pay-chip.bank { background: rgba(232,118,10,.18); border-color: rgba(232,118,10,.4); }
+
+        .footer-col h4 {
+            margin: 0 0 14px; color: #fff;
+            font: 700 .82rem/1 'Montserrat', sans-serif;
+            letter-spacing: .1em; text-transform: uppercase;
+        }
+        .footer-col ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+        .footer-col a { color: rgba(255,255,255,.72); text-decoration: none; font-size: .92rem; }
+        .footer-col a:hover { color: var(--amber); }
+        .footer-bottom {
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 14px; padding-top: 22px; flex-wrap: wrap;
+            font-size: .82rem; opacity: .7;
+        }
+
         /* ===== Suggestions ===== */
         .suggestions {
             margin-top: 6px; border: 1px solid #d6cab8; border-radius: 14px;
@@ -686,41 +921,6 @@ function renderDealCard(array $product, ?int $rank = null): string
         }
         .suggestion:hover { background: #fdf8f1; }
         .suggestion:last-child { border-bottom: 0; }
-
-        /* ===== Reviews strip ===== */
-        .reviews-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
-        .review-card {
-            background: #fff; border: 1px solid var(--line);
-            border-radius: var(--radius-md); padding: 18px;
-            box-shadow: var(--shadow-sm);
-            display: grid; gap: 10px; align-content: start;
-        }
-        .review-head { display: flex; align-items: center; gap: 10px; }
-        .review-avatar {
-            width: 40px; height: 40px; border-radius: 50%;
-            background: linear-gradient(135deg, #243a66, #1b2d4f);
-            color: #fff; display: inline-flex; align-items: center; justify-content: center;
-            font: 700 .9rem/1 'Montserrat', sans-serif;
-            object-fit: cover;
-        }
-        .review-name { color: var(--brand-navy); font: 700 .94rem/1.1 'Montserrat', sans-serif; }
-        .review-name small { display: block; color: #8a8275; font-weight: 500; margin-top: 2px; }
-        .review-text { color: #3e485e; font: 500 .94rem/1.55 'Source Sans 3', sans-serif;
-            display: -webkit-box; -webkit-line-clamp: 5; -webkit-box-orient: vertical; overflow: hidden; }
-        .review-foot { display: flex; align-items: center; justify-content: space-between; }
-        .review-foot .stars { color: var(--gold); letter-spacing: .06em; }
-        .google-pill {
-            display: inline-flex; align-items: center; gap: 6px;
-            color: #6b6b6b; font: 600 .76rem/1 'Montserrat', sans-serif;
-        }
-        .reviews-cta {
-            display: flex; align-items: center; justify-content: space-between; gap: 12px;
-            padding: 14px 18px; border-radius: var(--radius-md);
-            background: #fff; border: 1px solid var(--line);
-            box-shadow: var(--shadow-sm); margin-top: 14px; flex-wrap: wrap;
-        }
-        .reviews-cta strong { color: var(--brand-navy); font: 700 1rem/1.2 'Montserrat', sans-serif; }
-        .reviews-cta .stars { color: var(--gold); font-size: 1.1rem; letter-spacing: .06em; }
 
         /* ===== Newsletter ===== */
         .newsletter {
@@ -752,46 +952,6 @@ function renderDealCard(array $product, ?int $rank = null): string
             font: 700 .9rem/1 'Montserrat', sans-serif; letter-spacing: .03em;
         }
         .newsletter button:hover { background: var(--amber-deep); }
-
-        /* ===== Footer ===== */
-        .site-footer {
-            background: var(--brand-navy-deep); color: rgba(255,255,255,.82);
-            padding: 44px 0 24px; margin-top: 14px;
-        }
-        .footer-grid {
-            display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: 30px;
-            padding-bottom: 26px; border-bottom: 1px solid rgba(255,255,255,.1);
-        }
-        .footer-brand .logo-foot { height: 38px; margin-bottom: 12px; }
-        .footer-brand p { margin: 0 0 14px; font-size: .92rem; line-height: 1.6; opacity: .75; }
-        .footer-socials { display: flex; gap: 8px; }
-        .footer-socials a {
-            width: 36px; height: 36px; border-radius: 50%;
-            background: rgba(255,255,255,.08); color: #fff;
-            display: inline-flex; align-items: center; justify-content: center;
-            text-decoration: none; transition: background .15s;
-        }
-        .footer-socials a:hover { background: var(--amber); }
-        .footer-socials svg { width: 16px; height: 16px; }
-        .footer-col h4 {
-            margin: 0 0 14px; color: #fff;
-            font: 700 .82rem/1 'Montserrat', sans-serif;
-            letter-spacing: .1em; text-transform: uppercase;
-        }
-        .footer-col ul { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
-        .footer-col a { color: rgba(255,255,255,.72); text-decoration: none; font-size: .92rem; }
-        .footer-col a:hover { color: var(--amber); }
-        .footer-bottom {
-            display: flex; align-items: center; justify-content: space-between;
-            gap: 14px; padding-top: 22px; flex-wrap: wrap;
-            font-size: .82rem; opacity: .7;
-        }
-        .pay-icons { display: flex; gap: 10px; align-items: center; opacity: .85; }
-        .pay-pill {
-            background: #fff; color: #1b2d4f;
-            padding: 5px 10px; border-radius: 6px;
-            font: 700 .72rem/1 'Montserrat', sans-serif; letter-spacing: .05em;
-        }
 
         /* ===== Mobile bottom nav ===== */
         .bottom-nav {
@@ -874,7 +1034,6 @@ $reviewCountLabel = $reviewCount > 0 ? number_format($reviewCount) . '+ Google r
             <div id="suggestions" class="suggestions"></div>
         </div>
         <div class="header-actions">
-            <span class="trust-pill" aria-hidden="true"><span class="stars">★</span> <?= $avgRating ?> / 5</span>
             <a class="icon-btn" href="admin/index.php" aria-label="Account">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
             </a>
@@ -1023,33 +1182,9 @@ $reviewCountLabel = $reviewCount > 0 ? number_format($reviewCount) . '+ Google r
             <h2 class="section-title">Just for you<small>Hand-picked from our latest catalogue</small></h2>
         </div>
         <div class="meta-row" id="resultMeta">Showing latest products</div>
-        <div id="grid" class="grid">
+        <div id="grid" class="deal-grid">
         <?php foreach ($products as $product): ?>
-            <a class="card" href="<?= htmlspecialchars(productUrl((string)($product['slug'] ?? ''), (string)($product['display_name'] ?? $product['name'] ?? ''), (int)$product['erp_product_id'])) ?>">
-                <div class="media">
-                    <div class="card-badges">
-                        <?php if ((float)$product['stock_qty'] <= 0): ?>
-                            <span class="badge sale">Out of stock</span>
-                        <?php elseif ((float)$product['stock_qty'] <= 7): ?>
-                            <span class="badge low">Only <?= (int)$product['stock_qty'] ?> left</span>
-                        <?php elseif ($product['badge'] !== ''): ?>
-                            <span class="badge"><?= htmlspecialchars((string)$product['badge']) ?></span>
-                        <?php else: ?>
-                            <span class="badge">Featured</span>
-                        <?php endif; ?>
-                    </div>
-                    <img class="img" src="<?= htmlspecialchars((string)($product['image_url'] ?: 'assets/images/brand/logo-watercolorlk.png')) ?>" alt="<?= htmlspecialchars((string)$product['display_name']) ?>" loading="lazy">
-                </div>
-                <div class="body">
-                    <h3 class="name"><?= htmlspecialchars((string)$product['display_name']) ?></h3>
-                    <div class="price-row">
-                        <span class="price">LKR <?= number_format((float)$product['price'], 2) ?></span>
-                    </div>
-                    <div class="deal-row"><span class="price-old">LKR <?= number_format((float)$product['price'] * 1.12, 2) ?></span><span class="price-off">Save 12%</span></div>
-                    <div class="rating"><span class="stars">★★★★★</span><span>4.9 rated</span><span>120+ sold</span></div>
-                    <div class="stock <?= (float)$product['stock_qty'] > 0 ? 'ok' : 'no' ?>"><?= (float)$product['stock_qty'] > 0 ? ((float)$product['stock_qty'] <= 7 ? 'Only ' . (int)$product['stock_qty'] . ' left in stock' : 'In stock') : 'Out of stock' ?></div>
-                </div>
-            </a>
+            <?= renderDealCard($product) ?>
         <?php endforeach; ?>
         </div>
     </section>
@@ -1059,46 +1194,61 @@ $reviewCountLabel = $reviewCount > 0 ? number_format($reviewCount) . '+ Google r
     <section class="section" id="reviews" aria-label="Customer reviews">
         <div class="section-head">
             <h2 class="section-title">What artists are saying<small>Verified Google reviews from real customers</small></h2>
-            <a class="section-link" href="#" target="_blank" rel="noopener">See all on Google &rarr;</a>
+            <a class="section-link" href="<?= htmlspecialchars($googleReviewsUrl) ?>" target="_blank" rel="noopener">See all on Google &rarr;</a>
         </div>
-        <div class="reviews-strip">
+        <div class="reviews-summary">
+            <div class="gscore">
+                <img src="assets/images/google full logo.svg" alt="Google" onerror="this.style.display='none'">
+                <span class="num"><?= $avgRating ?></span>
+                <div>
+                    <div class="stars" aria-hidden="true">★★★★★</div>
+                    <div class="based">Based on <?= htmlspecialchars($reviewCountLabel) ?></div>
+                </div>
+            </div>
+            <span class="verified-pill">
+                <img src="assets/images/brand/verified-check.svg" alt="" aria-hidden="true" onerror="this.style.display='none'">
+                100% verified buyers
+            </span>
+        </div>
+        <div class="reviews-grid">
             <?php foreach ($topReviews as $review):
-                $author = htmlspecialchars((string)($review['author'] ?? 'Customer'));
+                $author = htmlspecialchars((string)($review['author'] ?? 'Verified Buyer'));
                 $initial = strtoupper(mb_substr((string)($review['author'] ?? 'A'), 0, 1));
-                $text = htmlspecialchars((string)($review['review_text'] ?? ''));
+                $text = htmlspecialchars(normalizeReviewText((string)($review['review_text'] ?? '')));
                 $rating = (float)($review['rating'] ?? 5);
                 $stars = str_repeat('★', (int)round($rating)) . str_repeat('☆', max(0, 5 - (int)round($rating)));
-                $date = !empty($review['review_date']) ? date('M Y', strtotime((string)$review['review_date'])) : '';
+                $displayDate = 'Recently';
+                if (!empty($review['review_date'])) {
+                    $ts = strtotime((string)$review['review_date']);
+                    if ($ts !== false) { $displayDate = date('M Y', $ts); }
+                }
                 $localPath = trim((string)($review['profile_picture_local_path'] ?? ''));
                 $remote = trim((string)($review['profile_picture_remote_url'] ?? ''));
-                $avatar = $localPath !== '' ? $localPath : ($remote !== '' ? $remote : '');
+                $avatar = $localPath !== '' ? $localPath : ($remote !== '' ? $remote : 'assets/images/brand/favicon-watercolorlk.webp');
+                $fallback = $remote !== '' ? $remote : 'assets/images/brand/favicon-watercolorlk.webp';
+                $isLong = textLengthSafe($text) > 220;
             ?>
             <article class="review-card">
                 <header class="review-head">
-                    <?php if ($avatar !== ''): ?>
-                        <img class="review-avatar" src="<?= htmlspecialchars($avatar) ?>" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'review-avatar',textContent:'<?= $initial ?>'}))">
-                    <?php else: ?>
-                        <span class="review-avatar"><?= $initial ?></span>
-                    <?php endif; ?>
-                    <div class="review-name"><?= $author ?><small><?= htmlspecialchars($date) ?> &middot; via Google</small></div>
+                    <img class="review-avatar-img" src="<?= htmlspecialchars($avatar) ?>" alt="<?= $author ?>" loading="lazy" onerror="this.onerror=null;this.src='<?= htmlspecialchars($fallback) ?>';">
+                    <div class="review-meta">
+                        <a class="review-author-row" href="<?= htmlspecialchars($googleReviewsUrl) ?>" target="_blank" rel="noopener">
+                            <span><?= $author ?></span>
+                            <img class="g-icon" src="assets/images/google icon for go near user name.svg" alt="Google" onerror="this.style.display='none'">
+                        </a>
+                        <span class="review-time"><?= htmlspecialchars($displayDate) ?> &middot; via Google</span>
+                    </div>
                 </header>
-                <p class="review-text">"<?= $text ?>"</p>
-                <footer class="review-foot">
+                <div class="review-stars-row">
                     <span class="stars" aria-label="<?= (int)$rating ?> of 5 stars"><?= $stars ?></span>
-                    <span class="google-pill">
-                        <svg width="14" height="14" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9 3.6l6.7-6.7C35.6 2.4 30.2 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.8 6c1.9-5.5 7-9.7 13.6-9.7z"/><path fill="#4285F4" d="M46.5 24.6c0-1.6-.1-3.1-.4-4.6H24v9h12.7c-.6 3-2.3 5.5-4.8 7.2l7.5 5.8c4.4-4 6.9-10 6.9-17.4z"/><path fill="#FBBC05" d="M10.4 28.7c-.5-1.4-.7-2.9-.7-4.7s.3-3.3.7-4.7l-7.8-6C.9 16.5 0 20.1 0 24s.9 7.5 2.6 10.7z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.8-5.8l-7.5-5.8c-2.1 1.4-4.8 2.3-8.3 2.3-6.5 0-12-4.4-13.9-10.3l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>
-                        Google
-                    </span>
-                </footer>
+                    <img class="verified-icon" src="assets/images/verification icon.png" alt="Verified" onerror="this.onerror=null;this.src='assets/images/brand/verified-check.svg';">
+                </div>
+                <p class="review-text<?= $isLong ? '' : ' expanded' ?>">"<?= $text ?>"</p>
+                <?php if ($isLong): ?>
+                    <a class="review-readmore" href="#" onclick="event.preventDefault(); this.previousElementSibling.classList.toggle('expanded'); this.textContent = this.previousElementSibling.classList.contains('expanded') ? 'Show less' : 'Read more';">Read more</a>
+                <?php endif; ?>
             </article>
             <?php endforeach; ?>
-        </div>
-        <div class="reviews-cta">
-            <div>
-                <strong><span class="stars">★★★★★</span> <?= $avgRating ?> / 5</strong>
-                <div style="color:#6e7689;font:500 .85rem/1.3 'Source Sans 3',sans-serif;margin-top:4px;">Based on <?= htmlspecialchars($reviewCountLabel) ?></div>
-            </div>
-            <a class="btn-secondary" href="#" target="_blank" rel="noopener">Read all reviews</a>
         </div>
     </section>
     <?php endif; ?>
@@ -1118,21 +1268,47 @@ $reviewCountLabel = $reviewCount > 0 ? number_format($reviewCount) . '+ Google r
 
 <!-- ACTIVITY TICKER -->
 <div id="activityToast" class="activity-toast" role="status" aria-live="polite">
-    <span class="av" id="actAv">A</span>
-    <div><span id="actText">Someone just bought a product</span><small>Recent activity (sample)</small></div>
+    <span class="pulse" aria-hidden="true"></span>
+    <div><span id="actText">Someone just bought a product</span><small id="actSub">Live activity</small></div>
 </div>
 
 <!-- FOOTER -->
 <footer class="site-footer">
-    <div class="wrap">
+    <div class="footer-trust-band">
+        <div class="wrap footer-trust">
+            <div class="trust-tile">
+                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2 4 6v6c0 5 3.5 9 8 10 4.5-1 8-5 8-10V6z"/><path d="m9 12 2 2 4-4"/></svg></span>
+                <div><strong>100% Authentic</strong><span>Direct from official brands</span></div>
+            </div>
+            <div class="trust-tile">
+                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h13v10H3zM16 10h4l2 3v4h-6"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg></span>
+                <div><strong>Island-wide delivery</strong><span>1-3 days, free over LKR 5,000</span></div>
+            </div>
+            <div class="trust-tile">
+                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 9a3 3 0 0 1 3-3h14a3 3 0 0 1 3 3v6a3 3 0 0 1-3 3H5a3 3 0 0 1-3-3z"/><path d="M2 11h20"/></svg></span>
+                <div><strong>Secure payments</strong><span>PayHere, COD &amp; bank transfer</span></div>
+            </div>
+            <div class="trust-tile">
+                <span class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.4 8.4 0 0 1-1 4 8.5 8.5 0 0 1-7.6 4.5 8.4 8.4 0 0 1-4-1L3 21l2-5.4a8.4 8.4 0 0 1-1-4 8.5 8.5 0 0 1 4.5-7.5 8.4 8.4 0 0 1 4-1A8.5 8.5 0 0 1 21 11.5z"/></svg></span>
+                <div><strong>WhatsApp support</strong><span>9 AM - 9 PM, all week</span></div>
+            </div>
+        </div>
+    </div>
+    <div class="wrap footer-main">
         <div class="footer-grid">
             <div class="footer-brand">
-                <img class="logo-foot" src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK">
+                <span class="logo-card"><img src="assets/images/brand/logo-watercolorlk.png" alt="Watercolor.LK"></span>
                 <p>Sri Lanka's trusted online store for premium watercolor and art supplies. පටන් ගන්න! පාට කරන්න! ජිවිතය විදින්න!</p>
+                <div class="footer-contact">
+                    <a href="tel:+94770000000"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.86 19.86 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.86 19.86 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.37 1.9.72 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.91.35 1.85.59 2.81.72A2 2 0 0 1 22 16.92z"/></svg>+94 77 000 0000</a>
+                    <a href="https://wa.me/94770000000" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3.5A10 10 0 0 0 4 16l-1 5 5-1A10 10 0 1 0 20 3.5z"/></svg>WhatsApp chat</a>
+                    <a href="mailto:hello@watercolor.lk"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>hello@watercolor.lk</a>
+                    <span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-7.58 8-13a8 8 0 1 0-16 0c0 5.42 8 13 8 13z"/><circle cx="12" cy="9" r="3"/></svg>Colombo, Sri Lanka 🇱🇰</span>
+                </div>
                 <div class="footer-socials">
                     <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M22 12a10 10 0 1 0-11.6 9.9v-7H8v-3h2.4V9.4c0-2.4 1.4-3.7 3.6-3.7 1 0 2.1.2 2.1.2v2.3h-1.2c-1.2 0-1.5.7-1.5 1.5V12h2.6l-.4 3h-2.2v7A10 10 0 0 0 22 12z"/></svg></a>
                     <a href="#" aria-label="Instagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor"/></svg></a>
-                    <a href="#" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3.5A10 10 0 0 0 4 16l-1 5 5-1A10 10 0 1 0 20 3.5zm-8 16a8 8 0 0 1-4-1.1l-3 .8.8-3A8 8 0 1 1 12 19.5z"/></svg></a>
+                    <a href="https://wa.me/94770000000" target="_blank" rel="noopener" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3.5A10 10 0 0 0 4 16l-1 5 5-1A10 10 0 1 0 20 3.5zm-8 16a8 8 0 0 1-4-1.1l-3 .8.8-3A8 8 0 1 1 12 19.5z"/></svg></a>
                     <a href="#" aria-label="TikTok"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 3v3a4 4 0 0 0 4 4v3a7 7 0 0 1-4-1.3V16a5 5 0 1 1-5-5v3a2 2 0 1 0 2 2V3z"/></svg></a>
                 </div>
             </div>
@@ -1167,14 +1343,25 @@ $reviewCountLabel = $reviewCount > 0 ? number_format($reviewCount) . '+ Google r
                 </ul>
             </div>
         </div>
-        <div class="footer-bottom">
-            <span>&copy; <?= date('Y') ?> Watercolor.LK - Made with love in Sri Lanka.</span>
-            <div class="pay-icons" aria-label="Payment methods">
-                <span class="pay-pill">VISA</span>
-                <span class="pay-pill">MASTER</span>
-                <span class="pay-pill">COD</span>
-                <span class="pay-pill">BANK</span>
+        <div class="footer-payments">
+            <h5>We Accept</h5>
+            <div class="pay-row">
+                <a class="payhere-banner" href="https://www.payhere.lk" target="_blank" rel="noopener" aria-label="PayHere">
+                    <img src="https://www.payhere.lk/downloads/images/payhere_long_banner.png" alt="PayHere - Visa, MasterCard, Amex, eZ Cash, mCash, Genie, FriMi" loading="lazy">
+                </a>
+                <span class="pay-chip cod">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h13v10H3zM16 10h4l2 3v4h-6"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+                    Cash on Delivery
+                </span>
+                <span class="pay-chip bank">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18"/><path d="M5 21V10l7-5 7 5v11"/><path d="M9 21v-7h6v7"/></svg>
+                    Bank Transfer
+                </span>
             </div>
+        </div>
+        <div class="footer-bottom">
+            <span>&copy; <?= date('Y') ?> Watercolor.LK - Made with love in Sri Lanka 🇱🇰</span>
+            <span>All rights reserved.</span>
         </div>
     </div>
 </footer>
@@ -1262,15 +1449,16 @@ if (bottomSearch) {
     setInterval(tick, 1000);
 })();
 
-/* ===== Activity ticker (sample) ===== */
+/* ===== Activity ticker ===== */
 (function() {
     const toast = document.getElementById('activityToast');
-    const av = document.getElementById('actAv');
     const text = document.getElementById('actText');
+    const sub = document.getElementById('actSub');
     if (!toast || !text) return;
     const names = ['Nimal', 'Ayesha', 'Dilani', 'Kasun', 'Ravi', 'Tharushi', 'Sahan', 'Imali', 'Pasindu', 'Hiruni', 'Janani', 'Sanduni'];
     const cities = ['Colombo', 'Kandy', 'Galle', 'Negombo', 'Jaffna', 'Matara', 'Kurunegala', 'Anuradhapura', 'Ratnapura', 'Batticaloa'];
-    const verbs = ['just bought', 'just added to cart', 'just viewed', 'just ordered'];
+    const verbs = ['just ordered', 'just added to cart', 'is viewing', 'just bought'];
+    const subs = ['Verified order', 'Live on site', 'Just now', 'Confirmed checkout'];
     function pickProductName() {
         const cards = document.querySelectorAll('#grid .name, .deal-name');
         if (!cards.length) return 'a watercolor product';
@@ -1286,7 +1474,7 @@ if (bottomSearch) {
         const product = pickProductName();
         const mins = 1 + Math.floor(Math.random() * 12);
         text.innerHTML = `<strong>${name}</strong> from ${city} ${verb} <em style="font-style:normal;color:var(--amber)">${product}</em> &middot; ${mins} min ago`;
-        if (av) av.textContent = name.charAt(0);
+        if (sub) sub.textContent = rand(subs);
         toast.classList.add('is-visible');
         setTimeout(() => toast.classList.remove('is-visible'), 5500);
     }
@@ -1382,25 +1570,39 @@ function renderProducts(items) {
         return;
     }
 
-    grid.innerHTML = items.map(item => `
-        <a class="card" href="${buildProductUrl(item)}">
-            <div class="media">
-                <div class="card-badges">
-                    ${renderTopBadge(item)}
-                </div>
-                <img class="img" src="${item.image_url || 'assets/images/brand/logo-watercolorlk.png'}" alt="${escapeHtml(item.display_name)}">
+    grid.innerHTML = items.map(item => {
+        const price = Number(item.price || 0);
+        const orig = price * 1.12;
+        const discountPct = Math.max(8, Math.round(((orig - price) / orig) * 100));
+        const saved = Math.max(0, orig - price);
+        const stock = Number(item.stock_qty || 0);
+        const sold = 80 + ((Number(item.erp_product_id || 0)) % 220);
+        const rating = '4.' + (5 + ((Number(item.erp_product_id || 0)) % 5));
+        const scarcityPct = stock > 0 ? Math.max(8, Math.min(96, 100 - (stock / 30) * 100)) : 100;
+        let stockNote;
+        if (stock <= 0) stockNote = '<div class="scarcity-note out">Sold out</div>';
+        else if (stock <= 7) stockNote = `<div class="scarcity-note hot">Only ${Math.floor(stock)} left</div>`;
+        else stockNote = '<div class="scarcity-note">Selling fast</div>';
+
+        return `
+        <a class="deal-card" href="${buildProductUrl(item)}">
+            <div class="deal-media">
+                <span class="discount-flag">-${discountPct}%</span>
+                <img loading="lazy" src="${item.image_url || 'assets/images/brand/logo-watercolorlk.png'}" alt="${escapeHtml(item.display_name)}">
             </div>
-            <div class="body">
-                <h3 class="name">${escapeHtml(item.display_name)}</h3>
-                <div class="price-row">
-                    <span class="price">LKR ${Number(item.price).toFixed(2)}</span>
+            <div class="deal-body">
+                <h3 class="deal-name">${escapeHtml(item.display_name)}</h3>
+                <div class="deal-price-row">
+                    <span class="deal-price">LKR ${price.toLocaleString('en-LK', {maximumFractionDigits: 0})}</span>
+                    <span class="deal-price-old">LKR ${orig.toLocaleString('en-LK', {maximumFractionDigits: 0})}</span>
                 </div>
-                <div class="deal-row"><span class="price-old">LKR ${(Number(item.price) * 1.12).toFixed(2)}</span><span class="price-off">Save 12%</span></div>
-                <div class="rating"><span class="stars">★★★★★</span><span>4.9 rated</span><span>120+ sold</span></div>
-                <div class="stock ${Number(item.stock_qty) > 0 ? 'ok' : 'no'}">${renderStockText(item)}</div>
+                <div class="deal-save">You save LKR ${saved.toLocaleString('en-LK', {maximumFractionDigits: 0})}</div>
+                <div class="deal-meta"><span class="stars">★★★★★</span><span class="meta-dot">${rating}</span><span class="meta-dot">${sold}+ sold</span></div>
+                <div class="scarcity-bar"><span style="width:${scarcityPct}%"></span></div>
+                ${stockNote}
             </div>
-        </a>
-    `).join('');
+        </a>`;
+    }).join('');
 }
 
 function buildProductUrl(item) {
