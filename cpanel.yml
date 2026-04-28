@@ -9,10 +9,14 @@ deployment:
     # Core application files
     - index.php
     - product.php
+    - shop.php
+    - cart.php
+    - checkout.php
     - .htaccess
     - robots.txt
     - api/
     - assets/
+    - partials/
 
     # Config and source code
     - config/app.php
