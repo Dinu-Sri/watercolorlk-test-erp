@@ -26,11 +26,11 @@ $_wlkBase      = $_wlkProto . '://' . $_SERVER['HTTP_HOST'] . $_wlkScriptDir . '
     <div class="promo-track">
         <span><strong>FREE delivery</strong> on orders over LKR 5,000</span><span class="dot"></span>
         <span><strong>Cash on Delivery</strong> island-wide</span><span class="dot"></span>
-        <span>Flash deals end in <strong id="promoCountdown">--:--:--</strong></span><span class="dot"></span>
+        <span>Flash deals end in <strong class="promo-countdown">00:00:00</strong></span><span class="dot"></span>
         <span>100% authentic stock - sourced from official brands</span><span class="dot"></span>
         <span><strong>FREE delivery</strong> on orders over LKR 5,000</span><span class="dot"></span>
         <span><strong>Cash on Delivery</strong> island-wide</span><span class="dot"></span>
-        <span>Flash deals end in <strong>tonight</strong></span><span class="dot"></span>
+        <span>Flash deals end in <strong class="promo-countdown">00:00:00</strong></span><span class="dot"></span>
         <span>100% authentic stock - sourced from official brands</span>
     </div>
     <button id="promoClose" class="promo-close" aria-label="Dismiss promo">&times;</button>

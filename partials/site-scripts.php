@@ -257,6 +257,25 @@
         });
     }
 
+    /* Promo countdown in the top ticker (shared across pages) */
+    (function() {
+        var nodes = document.querySelectorAll('.promo-countdown');
+        if (!nodes.length) return;
+        function tick() {
+            var now = new Date();
+            var end = new Date();
+            end.setHours(24, 0, 0, 0);
+            var diff = Math.max(0, Math.floor((end - now) / 1000));
+            var hh = String(Math.floor(diff / 3600)).padStart(2, '0');
+            var mm = String(Math.floor((diff % 3600) / 60)).padStart(2, '0');
+            var ss = String(diff % 60).padStart(2, '0');
+            var text = hh + ':' + mm + ':' + ss;
+            nodes.forEach(function(el) { el.textContent = text; });
+        }
+        tick();
+        setInterval(tick, 1000);
+    })();
+
     /* Activity ticker */
     var toast = document.getElementById('activityToast');
     var text = document.getElementById('actText');
