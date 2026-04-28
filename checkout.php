@@ -1,13 +1,6 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/bootstrap.php';
-
-/* Sri Lanka districts. */
-$districts = [
-    'Colombo','Gampaha','Kalutara','Kandy','Matale','Nuwara Eliya','Galle','Matara','Hambantota',
-    'Jaffna','Kilinochchi','Mannar','Vavuniya','Mullaitivu','Batticaloa','Ampara','Trincomalee',
-    'Kurunegala','Puttalam','Anuradhapura','Polonnaruwa','Badulla','Moneragala','Ratnapura','Kegalle',
-];
 ?>
 <!doctype html>
 <html lang="en">
@@ -150,19 +143,20 @@ details.cx-notes textarea { margin-top: 6px; min-height: 64px; resize: vertical;
     padding: 16px; box-shadow: var(--shadow-sm);
 }
 .cx-summary h2 { margin: 0 0 10px; color: var(--brand-navy-deep); font: 800 1rem/1.2 'Playfair Display', serif; }
-.cx-items { display: grid; gap: 10px; max-height: 38vh; overflow-y: auto; padding-right: 4px; }
-.cx-items .it { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; }
-.cx-items .it img { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: #f3eee6; border: 1px solid var(--line); position: relative; }
+.cx-items { display: grid; gap: 12px; max-height: 38vh; overflow-y: auto; padding: 8px 4px 4px 8px; }
+.cx-items .it { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; }
+.cx-items .it img { width: 52px; height: 52px; border-radius: 10px; object-fit: cover; background: #f3eee6; border: 1px solid var(--line); display: block; }
 .cx-items .it .qpip {
-    position: relative; display: inline-block;
+    position: relative; display: inline-block; line-height: 0;
 }
 .cx-items .it .qpip::after {
     content: attr(data-q);
-    position: absolute; top: -6px; right: -6px;
-    background: var(--brand-navy); color: #fff; min-width: 18px; height: 18px; padding: 0 5px;
+    position: absolute; top: -7px; right: -7px;
+    background: var(--brand-navy); color: #fff; min-width: 20px; height: 20px; padding: 0 6px;
     border-radius: 999px;
-    font: 800 .68rem/18px 'Montserrat', sans-serif; text-align: center;
+    font: 800 .72rem/20px 'Montserrat', sans-serif; text-align: center;
     box-shadow: 0 2px 6px rgba(16,32,58,.3);
+    box-sizing: border-box;
 }
 .cx-items .it .nm { color: var(--brand-navy-deep); font: 700 .82rem/1.25 'Source Sans 3', sans-serif; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .cx-items .it .pr { color: var(--brand-navy); font: 800 .85rem/1 'Source Sans 3', sans-serif; white-space: nowrap; }
@@ -176,8 +170,9 @@ details.cx-notes textarea { margin-top: 6px; min-height: 64px; resize: vertical;
 .cx-summary .edit-cart { display: inline-block; margin-top: 4px; color: var(--amber-deep); text-decoration: none; font: 700 .8rem/1 'Montserrat', sans-serif; }
 .cx-summary .edit-cart:hover { text-decoration: underline; }
 .cx-summary .trust-mini { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; align-items: center; }
-.cx-summary .trust-mini .chip { padding: 3px 8px; border-radius: 999px; border: 1px solid var(--line); font: 700 .68rem/1 'Montserrat', sans-serif; color: #4a5468; }
-.cx-summary .trust-mini img { height: 18px; }
+.cx-summary .trust-mini .chip { padding: 4px 9px; border-radius: 999px; border: 1px solid var(--line); font: 700 .72rem/1 'Montserrat', sans-serif; color: #4a5468; }
+.cx-summary .payhere-banner { display: block; margin-top: 12px; }
+.cx-summary .payhere-banner img { width: 100%; max-width: 100%; height: auto; display: block; border-radius: 8px; }
 
 /* Empty cart redirect notice */
 .cx-empty {
@@ -199,7 +194,8 @@ details.cx-notes textarea { margin-top: 6px; min-height: 64px; resize: vertical;
         font: 700 .92rem/1 'Montserrat', sans-serif; color: var(--brand-navy);
     }
     .cx-summary-toggle .amt { color: #b8232f; font-weight: 900; }
-    .cx-summary.is-collapsed { display: none; }
+    .cx-summary.is-collapsed .cx-items { display: none; }
+    .cx-summary.is-collapsed hr { display: none; }
     .cx-row.two { grid-template-columns: 1fr; }
     .pay-options { grid-template-columns: 1fr; }
     .pay-options label { flex-direction: row; justify-content: flex-start; padding: 12px; }
@@ -229,7 +225,7 @@ include __DIR__ . '/partials/site-header.php';
     </div>
 
     <button class="cx-summary-toggle" id="cxSummaryToggle" type="button">
-        <span>View order summary</span>
+        <span>View / hide items</span>
         <span class="amt" id="cxToggleAmt">LKR 0.00</span>
     </button>
 
@@ -248,8 +244,15 @@ include __DIR__ . '/partials/site-header.php';
                         <span class="err">Phone is required.</span>
                     </div>
                     <div class="cx-field">
+                        <label for="cxAltPhone">Alternate phone <span class="opt">(optional)</span></label>
+                        <input type="tel" id="cxAltPhone" name="alt_phone" autocomplete="tel-national" placeholder="Backup number">
+                        <span class="hint" style="color:#6b7388;">Courier may call before delivery</span>
+                    </div>
+                </div>
+                <div class="cx-row" style="margin-top:10px;">
+                    <div class="cx-field">
                         <label for="cxEmail">Email <span class="opt">(optional)</span></label>
-                        <input type="email" id="cxEmail" name="customer_email" autocomplete="email" placeholder="for receipt">
+                        <input type="email" id="cxEmail" name="customer_email" autocomplete="email" placeholder="for receipt &amp; order updates">
                         <span class="err">Enter a valid email.</span>
                     </div>
                 </div>
@@ -264,26 +267,10 @@ include __DIR__ . '/partials/site-header.php';
                         <span class="err">Name is required.</span>
                     </div>
                     <div class="cx-field" data-required>
-                        <label for="cxAddress">Address</label>
-                        <input type="text" id="cxAddress" name="address" autocomplete="street-address" placeholder="Street, building, landmark">
+                        <label for="cxAddress">Delivery address</label>
+                        <textarea id="cxAddress" name="address" rows="3" autocomplete="street-address" placeholder="House no, street, village, city, postal code" style="resize:vertical;"></textarea>
+                        <span class="hint" style="color:#6b7388;">Include landmarks if helpful for the courier</span>
                         <span class="err">Address is required.</span>
-                    </div>
-                    <div class="cx-row two">
-                        <div class="cx-field" data-required>
-                            <label for="cxCity">City</label>
-                            <input type="text" id="cxCity" name="city" autocomplete="address-level2" placeholder="e.g. Nugegoda">
-                            <span class="err">City is required.</span>
-                        </div>
-                        <div class="cx-field" data-required>
-                            <label for="cxDistrict">District</label>
-                            <select id="cxDistrict" name="district">
-                                <option value="">Select district</option>
-                                <?php foreach ($districts as $d): ?>
-                                    <option value="<?= htmlspecialchars($d) ?>"><?= htmlspecialchars($d) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                            <span class="err">Pick your district.</span>
-                        </div>
                     </div>
                 </div>
             </section>
@@ -324,10 +311,6 @@ include __DIR__ . '/partials/site-header.php';
                 </details>
             </section>
 
-            <button type="submit" class="cx-submit" id="cxSubmit" disabled>
-                <span class="spinner" aria-hidden="true"></span>
-                <span class="lbl">Place order &mdash; <span id="cxBtnAmt">LKR 0.00</span></span>
-            </button>
             <div class="cx-error" id="cxError"></div>
         </div>
 
@@ -338,11 +321,18 @@ include __DIR__ . '/partials/site-header.php';
             <div class="ln"><span>Subtotal</span><strong id="cxSub">LKR 0.00</strong></div>
             <div class="ln"><span>Shipping</span><strong id="cxShip">LKR 0.00</strong></div>
             <div class="total"><span class="lbl">Total</span><span class="amt" id="cxTotal">LKR 0.00</span></div>
-            <a class="edit-cart" href="cart.php">Edit cart</a>
+            <button type="submit" class="cx-submit" id="cxSubmit" form="cxForm" disabled style="margin-top:14px;">
+                <span class="spinner" aria-hidden="true"></span>
+                <span class="lbl">Place order &mdash; <span id="cxBtnAmt">LKR 0.00</span></span>
+            </button>
+            <a class="edit-cart" href="cart.php">&larr; Edit cart</a>
             <div class="trust-mini">
                 <span class="chip">7-day returns</span>
                 <span class="chip">Buyer protection</span>
-                <img src="https://www.payhere.lk/downloads/images/payhere_long_banner.png" alt="PayHere" loading="lazy">
+                <span class="chip">Secure SSL</span>
+            </div>
+            <div class="payhere-banner">
+                <img src="https://www.payhere.lk/downloads/images/payhere_long_banner.png" alt="PayHere accepts Visa, Mastercard, Amex, eZ Cash, mCash, Genie" loading="lazy">
             </div>
         </aside>
     </form>
@@ -457,11 +447,10 @@ include __DIR__ . '/partials/site-header.php';
             try {
                 var d = {
                     customer_phone: document.getElementById('cxPhone').value,
+                    alt_phone: document.getElementById('cxAltPhone').value,
                     customer_email: document.getElementById('cxEmail').value,
                     customer_name: document.getElementById('cxName').value,
                     address: document.getElementById('cxAddress').value,
-                    city: document.getElementById('cxCity').value,
-                    district: document.getElementById('cxDistrict').value,
                     notes: document.getElementById('cxNotes').value,
                     payment_method: (form.querySelector('input[name=payment_method]:checked') || {}).value || 'payhere'
                 };
@@ -472,8 +461,8 @@ include __DIR__ . '/partials/site-header.php';
             try {
                 var d = JSON.parse(localStorage.getItem(DRAFT_KEY) || '{}');
                 if (!d || typeof d !== 'object') return;
-                ['customer_phone','customer_email','customer_name','address','city','district','notes'].forEach(function(k) {
-                    var map = { customer_phone:'cxPhone', customer_email:'cxEmail', customer_name:'cxName', address:'cxAddress', city:'cxCity', district:'cxDistrict', notes:'cxNotes' };
+                ['customer_phone','alt_phone','customer_email','customer_name','address','notes'].forEach(function(k) {
+                    var map = { customer_phone:'cxPhone', alt_phone:'cxAltPhone', customer_email:'cxEmail', customer_name:'cxName', address:'cxAddress', notes:'cxNotes' };
                     var el = document.getElementById(map[k]);
                     if (el && d[k]) el.value = d[k];
                 });
@@ -516,18 +505,19 @@ include __DIR__ . '/partials/site-header.php';
             }
 
             var paymentMethod = (form.querySelector('input[name=payment_method]:checked') || {}).value || 'payhere';
-            var fullAddress = [
-                document.getElementById('cxAddress').value.trim(),
-                document.getElementById('cxCity').value.trim(),
-                document.getElementById('cxDistrict').value.trim()
-            ].filter(Boolean).join(', ');
+            var fullAddress = document.getElementById('cxAddress').value.trim();
+            var altPhone = document.getElementById('cxAltPhone').value.trim();
+            var notesText = document.getElementById('cxNotes').value.trim();
+            var notesParts = ['Address: ' + fullAddress];
+            if (altPhone) notesParts.push('Alt phone: ' + altPhone);
+            if (notesText) notesParts.push('Notes: ' + notesText);
 
             var payload = {
                 customer_name: document.getElementById('cxName').value.trim(),
                 customer_phone: document.getElementById('cxPhone').value.trim(),
                 customer_email: document.getElementById('cxEmail').value.trim(),
                 payment_method: paymentMethod,
-                notes: (document.getElementById('cxNotes').value.trim() + ' | Address: ' + fullAddress).trim(),
+                notes: notesParts.join(' | '),
                 items: WLKCart.items().map(function(it) {
                     return {
                         erp_product_id: Number(it.erp_product_id),
