@@ -246,6 +246,7 @@ function shopProductUrl(string $slug, string $name, int $erpId): string
 
 /* Active chips */
 .active-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.active-chips[hidden] { display: none !important; }
 .active-chips .chip {
     display: inline-flex; align-items: center; gap: 6px;
     padding: 5px 10px 5px 12px; border-radius: 999px;
@@ -690,7 +691,7 @@ include __DIR__ . '/partials/site-header.php';
         if (state.min || state.max) chips.push({label: 'Price: ' + (state.min || '0') + ' - ' + (state.max || '∞'), remove: function(){ state.min = ''; state.max = ''; }});
         if (state.in_stock) chips.push({label: 'In stock only', remove: function(){ state.in_stock = false; }});
 
-        if (!chips.length) { $chips.setAttribute('hidden', ''); return; }
+        if (!chips.length) { $chips.innerHTML = ''; $chips.setAttribute('hidden', ''); return; }
         $chips.innerHTML = chips.map(function(c, i) {
             return '<span class="chip">' + escapeHtml(c.label) + '<button type="button" data-i="' + i + '" aria-label="Remove">&times;</button></span>';
         }).join('');
