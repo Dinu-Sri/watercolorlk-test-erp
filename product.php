@@ -192,8 +192,8 @@ $stock = $product ? (float)$product['stock_qty'] : 0;
 $stockPercent = $stock <= 0 ? 0 : min(100, max(12, (int)($stock * 10)));
 $isOutOfStock = $stock <= 0;
 $waButtonText = $isOutOfStock
-    ? 'Ask support when this item will be back in stock'
-    : 'Get more info and order through WhatsApp';
+    ? 'Ask support about restock'
+    : 'Get info & order on WhatsApp';
 
 $today = new DateTimeImmutable('today');
 $deliveryStart = addWorkingDays($today, 2);
@@ -1067,6 +1067,13 @@ if ($baseHref === '') {
         font: 800 .76rem/1 'Montserrat', sans-serif; letter-spacing: .04em;
         margin-right: 8px;
     }
+    .deal-flag--corner {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        margin-right: 0;
+        z-index: 3;
+    }
     .rating-row .g-pill {
         display: inline-flex; align-items: center; gap: 6px;
         padding: 4px 10px; border-radius: 999px;
@@ -1196,6 +1203,7 @@ if ($baseHref === '') {
         display: inline-flex; align-items: center; justify-content: center; gap: 8px;
     }
     .btn-wa img { width: 18px; height: 18px; display: block; }
+    .btn-wa .wa-fallback { width: 18px; height: 18px; display: none; }
 
     /* Trust tiles row (right column) — compact, clickable */
     .trust-row {
@@ -1494,12 +1502,12 @@ include __DIR__ . '/partials/site-header.php';
             </div>
 
             <aside class="box">
+                <?php if ($savedPercent > 0): ?><span class="deal-flag deal-flag--corner">⚡ FLASH DEAL</span><?php endif; ?>
                 <?php if (!empty($product['badge'])): ?>
                     <span class="badge"><?= htmlspecialchars((string)$product['badge']) ?></span>
                 <?php endif; ?>
                 <div class="brand-line"><?= htmlspecialchars($brandLine) ?></div>
                 <h1>
-                    <?php if ($savedPercent > 0): ?><span class="deal-flag">⚡ FLASH DEAL</span><?php endif; ?>
                     <?= htmlspecialchars((string)$product['name']) ?>
                 </h1>
 
@@ -1570,7 +1578,8 @@ include __DIR__ . '/partials/site-header.php';
                     <button class="btn-cart" type="button" onclick="addToCart()" <?= $isOutOfStock ? 'disabled' : '' ?>>Add to Cart</button>
                 </div>
                 <button class="btn-wa" type="button" onclick="openWhatsAppOrder()">
-                    <img src="assets/images/whatsapp-svgrepo-com.svg" alt="" aria-hidden="true">
+                    <img src="assets/images/whatsapp-svgrepo-com.svg" alt="" aria-hidden="true" onerror="this.style.display='none';var fb=this.parentNode.querySelector('.wa-fallback');if(fb){fb.style.display='block';}">
+                    <svg class="wa-fallback" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 3.5A10 10 0 0 0 4 16l-1 5 5-1A10 10 0 1 0 20 3.5z"/></svg>
                     <?= htmlspecialchars($waButtonText) ?>
                 </button>
 
