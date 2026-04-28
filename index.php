@@ -1032,9 +1032,9 @@ include __DIR__ . '/partials/site-header.php';
             <div class="hero-trust">
                 <span><span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span> <strong style="color:var(--brand-navy)"><?= $avgRating ?></strong>&nbsp;<?= htmlspecialchars($reviewCountLabel) ?></span>
                 <span class="sep"></span>
-                <span>ðŸ‡±ðŸ‡° Free delivery > LKR 5,000</span>
+                <span>&#x1F69A; Free delivery &gt; LKR 5,000</span>
                 <span class="sep"></span>
-                <span>ðŸ’³ COD &amp; bank transfer</span>
+                <span>&#x1F4B3; COD &amp; bank transfer</span>
             </div>
         </div>
         <div class="hero-art" aria-hidden="true">
