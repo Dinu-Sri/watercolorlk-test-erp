@@ -140,7 +140,7 @@
                     products.forEach(function(p) {
                         var name = p.display_name || p.name || '';
                         var slug = (p.slug && !/^product-\d+$/i.test(p.slug)) ? p.slug : (name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'product');
-                        var url = 'product.php?slug=' + encodeURIComponent(slug + '-' + Number(p.erp_product_id));
+                        var url = 'product/' + encodeURIComponent(slug + '-' + Number(p.erp_product_id));
                         items.push({ type: 'product', q: name, url: url });
                         var img = p.image_url || 'assets/images/brand/logo-watercolorlk.png';
                         html += '<a class="sug-item product" data-i="' + (items.length - 1) + '" href="' + url + '">' +

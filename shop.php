@@ -32,28 +32,33 @@ $bucketMap = [
     'Brushes' => 'brush', 'Papers' => 'paper', 'Paints' => 'paint',
     'Sketchbooks' => 'sketch', 'Accessories' => 'access',
 ];
-try {
-    $bucketCounts = $repo->listCategoriesWithCounts($bucketMap);
-    $bucketFacets = [];
-    foreach ($bucketMap as $label => $kw) {
-        $bucketFacets[] = [
-            'label'   => $label,
-            'keyword' => $kw,
-            'count'   => (int)($bucketCounts[$label] ?? 0),
-        ];
-    }
-    $brandsList = $repo->listAllBrands();
-    if (empty($brandsList)) {
-        $brandsList = $repo->listInferredBrands();
-    }
-    $facets = [
-        'product_types' => $bucketFacets,
-        'brands'        => $brandsList,
-        'price_range'   => $repo->getPriceRange(),
+
+/* Resilient facets: each subquery is wrapped so one failure doesn't blank the rail. */
+$bucketCounts = [];
+try { $bucketCounts = $repo->listCategoriesWithCounts($bucketMap); } catch (Throwable $e) { $bucketCounts = []; }
+$bucketFacets = [];
+foreach ($bucketMap as $label => $kw) {
+    $bucketFacets[] = [
+        'label'   => $label,
+        'keyword' => $kw,
+        'count'   => (int)($bucketCounts[$label] ?? 0),
     ];
-} catch (Throwable $e) {
-    $facets = ['product_types' => [], 'brands' => [], 'price_range' => ['min' => 0, 'max' => 10000]];
 }
+
+$brandsList = [];
+try { $brandsList = $repo->listAllBrands(); } catch (Throwable $e) { $brandsList = []; }
+if (empty($brandsList)) {
+    try { $brandsList = $repo->listInferredBrands(); } catch (Throwable $e) { $brandsList = []; }
+}
+
+$priceRange = ['min' => 0, 'max' => 10000];
+try { $priceRange = $repo->getPriceRange(); } catch (Throwable $e) { /* keep default */ }
+
+$facets = [
+    'product_types' => $bucketFacets,
+    'brands'        => $brandsList,
+    'price_range'   => $priceRange,
+];
 
 /* Log search query for analytics (fire-and-forget; failures swallowed in repo). */
 if ($q !== '' && mb_strlen($q) >= 2) {
@@ -102,7 +107,7 @@ function shopProductUrl(string $slug, string $name, int $erpId): string
     $base = preg_replace('/[^a-z0-9]+/i', '-', $base) ?? '';
     $base = trim($base, '-');
     if ($base === '') $base = 'product';
-    return 'product.php?slug=' . rawurlencode($base) . '-' . $erpId;
+    return 'product/' . rawurlencode($base) . '-' . $erpId;
 }
 ?>
 <!doctype html>
@@ -494,7 +499,7 @@ include __DIR__ . '/partials/site-header.php';
             in_stock: p.get('in_stock') === '1',
             sort: p.get('sort') || 'relevance',
             page: Math.max(1, parseInt(p.get('page') || '1', 10) || 1),
-            per_page: parseInt(p.get('per_page') || PER_PAGE_DEFAULT, 10) || PER_PAGE_DEFAULT
+            per_page: (function(){ var v = parseInt(p.get('per_page') || '', 10); return [24,48,96].indexOf(v) !== -1 ? v : 24; })()
         };
     }
     function writeState(s, replace) {
@@ -545,7 +550,8 @@ include __DIR__ . '/partials/site-header.php';
     }
     function productHref(p) {
         var slug = (p.slug && !/^product-\d+$/i.test(p.slug)) ? p.slug : buildSlug(p.display_name || p.name);
-        return 'product.php?slug=' + encodeURIComponent(slug) + '-' + Number(p.erp_product_id);
+        /* Use the htaccess-rewritten form so the URL is clean and root-anchored. */
+        return 'product/' + encodeURIComponent(slug) + '-' + Number(p.erp_product_id);
     }
 
     /* ---------- Render filter rail (used in both desktop and drawer) ---------- */
@@ -553,26 +559,31 @@ include __DIR__ . '/partials/site-header.php';
         var html = '';
         html += '<div class="filt-head"><h3>Filters</h3><button class="clear-all" type="button" id="' + prefix + 'ClearAll" hidden>Clear all</button></div>';
 
-        /* Product Type (keyword buckets — the visible "Categories" filter) */
-        if (FACETS.product_types && FACETS.product_types.length) {
-            html += '<details class="filt-block" open><summary>Product Type</summary><div class="body"><div class="filt-list" data-list="cat">';
-            FACETS.product_types.forEach(function(c) {
-                var checked = state.categories.indexOf(c.keyword) !== -1 ? 'checked' : '';
-                var disabled = (c.count <= 0) ? ' disabled' : '';
-                html += '<label' + (c.count <= 0 ? ' style="opacity:.45"' : '') + '><input type="checkbox" data-filter="category" value="' + escapeHtml(c.keyword) + '"' + disabled + ' ' + checked + '><span>' + escapeHtml(c.label) + '</span><span class="cnt">' + c.count + '</span></label>';
-            });
-            html += '</div></div></details>';
-        }
+        /* Product Type (keyword buckets — always rendered so the section is never missing) */
+        html += '<details class="filt-block" open><summary>Product Type</summary><div class="body"><div class="filt-list" data-list="cat">';
+        var pt = (FACETS.product_types && FACETS.product_types.length) ? FACETS.product_types : [
+            {label:'Brushes',keyword:'brush',count:0},{label:'Papers',keyword:'paper',count:0},
+            {label:'Paints',keyword:'paint',count:0},{label:'Sketchbooks',keyword:'sketch',count:0},
+            {label:'Accessories',keyword:'access',count:0}
+        ];
+        pt.forEach(function(c) {
+            var checked = state.categories.indexOf(c.keyword) !== -1 ? 'checked' : '';
+            var dim = (c.count <= 0) ? ' style="opacity:.5"' : '';
+            html += '<label' + dim + '><input type="checkbox" data-filter="category" value="' + escapeHtml(c.keyword) + '" ' + checked + '><span>' + escapeHtml(c.label) + '</span><span class="cnt">' + (c.count||0) + '</span></label>';
+        });
+        html += '</div></div></details>';
 
-        /* Brands */
+        /* Brands — always rendered; falls back to a short hint if the list is empty */
+        html += '<details class="filt-block"><summary>Brand</summary><div class="body"><div class="filt-list" data-list="brand">';
         if (FACETS.brands && FACETS.brands.length) {
-            html += '<details class="filt-block"><summary>Brand</summary><div class="body"><div class="filt-list" data-list="brand">';
             FACETS.brands.forEach(function(b) {
                 var checked = state.brands.indexOf(b.name) !== -1 ? 'checked' : '';
                 html += '<label><input type="checkbox" data-filter="brand" value="' + escapeHtml(b.name) + '" ' + checked + '><span>' + escapeHtml(b.name) + '</span><span class="cnt">' + b.count + '</span></label>';
             });
-            html += '</div></div></details>';
+        } else {
+            html += '<div style="color:#98a1b3;font:600 .82rem/1.3 \'Source Sans 3\',sans-serif;padding:6px 0">No brand data yet.</div>';
         }
+        html += '</div></div></details>';
 
         /* Price */
         var pr = FACETS.price_range || {min:0, max:10000};
