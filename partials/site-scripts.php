@@ -8,6 +8,19 @@
 <script src="assets/js/cart.js?v=1" defer></script>
 <script>
 (function() {
+    /* Universal header search: pressing Enter on any page (except shop.php which binds its own
+       handler and sets data-shopBound) navigates to shop.php?q=... for the unified listing UX. */
+    var search = document.getElementById('search');
+    if (search) {
+        search.addEventListener('keydown', function(e) {
+            if (e.key !== 'Enter') return;
+            if (search.dataset.shopBound === '1') return; /* shop.php manages this input */
+            var v = (search.value || '').trim();
+            e.preventDefault();
+            window.location.href = 'shop.php' + (v ? ('?q=' + encodeURIComponent(v)) : '');
+        });
+    }
+
     /* Bottom nav: focus header search */
     const bs = document.getElementById('bottomNavSearch');
     if (bs) {

@@ -1453,7 +1453,7 @@ include __DIR__ . '/partials/site-header.php';
         <nav class="breadcrumbs" aria-label="Breadcrumb">
             <a href="index.php">Home</a>
             <span class="sep">›</span>
-            <a href="index.php?q=<?= urlencode($crumbCategory) ?>"><?= htmlspecialchars($crumbCategory) ?></a>
+            <a href="shop.php?category=<?= urlencode($crumbCategory) ?>"><?= htmlspecialchars($crumbCategory) ?></a>
             <?php if ($crumbBrand !== ''): ?>
                 <span class="sep">›</span>
                 <a href="index.php?q=<?= urlencode($crumbBrand) ?>"><?= htmlspecialchars($crumbBrand) ?></a>
@@ -1592,7 +1592,8 @@ include __DIR__ . '/partials/site-header.php';
 
                 <div class="meta-inline" style="margin-top:14px;">
                     <span class="meta-pill">Brand: <?= htmlspecialchars((string)($product['brand_name'] ?: 'Watercolor.LK')) ?></span>
-                    <span class="meta-pill">Category: <?= htmlspecialchars((string)($product['category_name'] ?: 'Art Supplies')) ?></span>
+                    <?php $catLink = (string)($product['category_name'] ?: 'Art Supplies'); ?>
+                    <a class="meta-pill" href="shop.php?category=<?= urlencode($catLink) ?>" style="text-decoration:none;">Category: <?= htmlspecialchars($catLink) ?></a>
                     <span class="meta-pill">SKU: <?= htmlspecialchars((string)$product['sku']) ?></span>
                 </div>
                 <div id="orderResult"></div>
@@ -1622,7 +1623,7 @@ include __DIR__ . '/partials/site-header.php';
                     <h3 style="margin:0 0 8px;color:var(--brand-navy-deep);font:700 1.05rem/1.2 'Playfair Display',serif;">Specifications</h3>
                     <dl class="specs-list">
                         <dt>Brand</dt><dd><?= htmlspecialchars((string)($product['brand_name'] ?: 'Watercolor.LK')) ?></dd>
-                        <dt>Category</dt><dd><?= htmlspecialchars((string)($product['category_name'] ?: 'Art Supplies')) ?></dd>
+                        <dt>Category</dt><dd><a href="shop.php?category=<?= urlencode((string)($product['category_name'] ?: 'Art Supplies')) ?>"><?= htmlspecialchars((string)($product['category_name'] ?: 'Art Supplies')) ?></a></dd>
                         <dt>SKU</dt><dd><?= htmlspecialchars((string)$product['sku']) ?></dd>
                         <dt>Stock</dt><dd><?= $isOutOfStock ? 'Out of stock' : ((int)$stock . ' units') ?></dd>
                         <dt>Delivery</dt><dd><?= htmlspecialchars($deliveryLabel) ?></dd>

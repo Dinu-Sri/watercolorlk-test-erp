@@ -354,6 +354,184 @@ SQL;
         return array_map(fn(array $row): array => $this->hydrateSeoSlug($row), $rows);
     }
 
+    /**
+     * Faceted search for the shop page. Returns ['products' => [...], 'total' => int].
+     *
+     * Filters supported:
+     *   q           — keyword
+     *   categories  — array of category_name (LIKE match per item, OR'd)
+     *   brands      — array of brand_name (exact match per item, OR'd)
+     *   min_price   — numeric, inclusive
+     *   max_price   — numeric, inclusive
+     *   in_stock    — bool, restrict to stock_qty > 0
+     *   sort        — relevance | price_asc | price_desc | newest | name
+     *   limit       — page size
+     *   offset      — page offset
+     */
+    public function searchProducts(array $filters): array
+    {
+        $where = ['p.is_active = 1'];
+        $params = [];
+
+        $q = trim((string)($filters['q'] ?? ''));
+        if ($q !== '') {
+            $where[] = "(
+                LOWER(p.name) LIKE LOWER(:q)
+                OR LOWER(COALESCE(po.override_title, '')) LIKE LOWER(:q)
+                OR LOWER(p.sku) LIKE LOWER(:q)
+                OR LOWER(COALESCE(p.category_name, '')) LIKE LOWER(:q)
+                OR LOWER(COALESCE(p.brand_name, '')) LIKE LOWER(:q)
+            )";
+            $params['q'] = '%' . $q . '%';
+        }
+
+        $categories = array_filter(array_map('trim', (array)($filters['categories'] ?? [])), fn($v) => $v !== '');
+        if (!empty($categories)) {
+            $catParts = [];
+            foreach (array_values($categories) as $i => $cat) {
+                $key = 'cat' . $i;
+                $catParts[] = "LOWER(COALESCE(p.category_name, '')) LIKE LOWER(:$key)";
+                $params[$key] = '%' . $cat . '%';
+            }
+            $where[] = '(' . implode(' OR ', $catParts) . ')';
+        }
+
+        $brands = array_filter(array_map('trim', (array)($filters['brands'] ?? [])), fn($v) => $v !== '');
+        if (!empty($brands)) {
+            $brandParts = [];
+            foreach (array_values($brands) as $i => $brand) {
+                $key = 'brand' . $i;
+                $brandParts[] = "LOWER(COALESCE(p.brand_name, '')) = LOWER(:$key)";
+                $params[$key] = $brand;
+            }
+            $where[] = '(' . implode(' OR ', $brandParts) . ')';
+        }
+
+        if (isset($filters['min_price']) && $filters['min_price'] !== '' && is_numeric($filters['min_price'])) {
+            $where[] = 'COALESCE(po.override_price, p.price) >= :min_price';
+            $params['min_price'] = (float)$filters['min_price'];
+        }
+        if (isset($filters['max_price']) && $filters['max_price'] !== '' && is_numeric($filters['max_price'])) {
+            $where[] = 'COALESCE(po.override_price, p.price) <= :max_price';
+            $params['max_price'] = (float)$filters['max_price'];
+        }
+        if (!empty($filters['in_stock'])) {
+            $where[] = 'p.stock_qty > 0';
+        }
+
+        $sort = (string)($filters['sort'] ?? 'relevance');
+        switch ($sort) {
+            case 'price_asc':  $orderBy = 'COALESCE(po.override_price, p.price) ASC, p.name ASC'; break;
+            case 'price_desc': $orderBy = 'COALESCE(po.override_price, p.price) DESC, p.name ASC'; break;
+            case 'newest':     $orderBy = 'p.updated_at DESC, p.id DESC'; break;
+            case 'name':       $orderBy = 'p.name ASC'; break;
+            case 'relevance':
+            default:
+                if ($q !== '') {
+                    /* Relevance: exact-name match → starts-with → contains, then in-stock first */
+                    $orderBy = "
+                        CASE WHEN LOWER(p.name) = LOWER(:rel_exact) THEN 0
+                             WHEN LOWER(p.name) LIKE LOWER(:rel_prefix) THEN 1
+                             ELSE 2 END,
+                        (p.stock_qty > 0) DESC, p.stock_qty DESC, p.name ASC";
+                    $params['rel_exact']  = $q;
+                    $params['rel_prefix'] = $q . '%';
+                } else {
+                    $orderBy = '(p.stock_qty > 0) DESC, p.stock_qty DESC, p.updated_at DESC';
+                }
+        }
+
+        $whereSql = implode(' AND ', $where);
+        $limit  = max(1, min(96, (int)($filters['limit']  ?? 24)));
+        $offset = max(0, (int)($filters['offset'] ?? 0));
+
+        $sql = <<<SQL
+SELECT p.id, p.erp_product_id, p.sku, p.name,
+       COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
+       COALESCE(NULLIF(po.override_title, ''), p.name) AS display_name,
+       COALESCE(NULLIF(po.override_description, ''), p.description) AS display_description,
+       COALESCE(po.override_image_url, p.image_url) AS image_url,
+       COALESCE(po.override_price, p.price) AS price,
+       p.price AS original_price,
+       p.stock_qty,
+       p.category_name,
+       p.brand_name,
+       COALESCE(po.override_badge, '') AS badge
+FROM products p
+LEFT JOIN product_overrides po ON po.product_id = p.id
+WHERE $whereSql
+ORDER BY $orderBy
+LIMIT :limit OFFSET :offset
+SQL;
+
+        $stmt = $this->db->prepare($sql);
+        foreach ($params as $key => $value) {
+            $stmt->bindValue(':' . $key, $value, is_float($value) ? PDO::PARAM_STR : PDO::PARAM_STR);
+        }
+        $stmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
+        $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+        $stmt->execute();
+        $rows = array_map(fn(array $r): array => $this->hydrateSeoSlug($r), $stmt->fetchAll());
+
+        $countSql = "SELECT COUNT(*) AS c FROM products p LEFT JOIN product_overrides po ON po.product_id = p.id WHERE $whereSql";
+        $countStmt = $this->db->prepare($countSql);
+        foreach ($params as $key => $value) {
+            if (in_array($key, ['rel_exact', 'rel_prefix'], true)) continue;
+            $countStmt->bindValue(':' . $key, $value, PDO::PARAM_STR);
+        }
+        $countStmt->execute();
+        $total = (int)($countStmt->fetch()['c'] ?? 0);
+
+        return ['products' => $rows, 'total' => $total];
+    }
+
+    /** Distinct categories with counts of active products. */
+    public function listAllCategories(): array
+    {
+        $sql = <<<SQL
+SELECT TRIM(COALESCE(category_name, '')) AS name, COUNT(*) AS cnt
+FROM products
+WHERE is_active = 1 AND TRIM(COALESCE(category_name, '')) <> ''
+GROUP BY TRIM(COALESCE(category_name, ''))
+ORDER BY cnt DESC, name ASC
+SQL;
+        $stmt = $this->db->query($sql);
+        return $stmt ? array_map(static fn(array $r): array => ['name' => (string)$r['name'], 'count' => (int)$r['cnt']], $stmt->fetchAll()) : [];
+    }
+
+    /** Distinct brands with counts. */
+    public function listAllBrands(): array
+    {
+        $sql = <<<SQL
+SELECT TRIM(COALESCE(brand_name, '')) AS name, COUNT(*) AS cnt
+FROM products
+WHERE is_active = 1 AND TRIM(COALESCE(brand_name, '')) <> ''
+GROUP BY TRIM(COALESCE(brand_name, ''))
+ORDER BY cnt DESC, name ASC
+SQL;
+        $stmt = $this->db->query($sql);
+        return $stmt ? array_map(static fn(array $r): array => ['name' => (string)$r['name'], 'count' => (int)$r['cnt']], $stmt->fetchAll()) : [];
+    }
+
+    /** Min/max effective price across active products. */
+    public function getPriceRange(): array
+    {
+        $sql = <<<SQL
+SELECT
+    MIN(COALESCE(po.override_price, p.price)) AS min_price,
+    MAX(COALESCE(po.override_price, p.price)) AS max_price
+FROM products p
+LEFT JOIN product_overrides po ON po.product_id = p.id
+WHERE p.is_active = 1
+SQL;
+        $stmt = $this->db->query($sql);
+        $row = $stmt ? $stmt->fetch() : null;
+        return [
+            'min' => $row ? (float)($row['min_price'] ?? 0) : 0.0,
+            'max' => $row ? (float)($row['max_price'] ?? 0) : 0.0,
+        ];
+    }
+
     public function saveOverride(int $productId, array $override): void
     {
         $sql = <<<SQL

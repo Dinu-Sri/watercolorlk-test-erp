@@ -1107,7 +1107,7 @@ include __DIR__ . '/partials/site-header.php';
             foreach ($cats as $c):
                 $count = (int)($categoryCounts[$c['key']] ?? 0);
             ?>
-                <a class="category-card" href="?q=<?= urlencode($c['q']) ?>#products">
+                <a class="category-card" href="shop.php?category=<?= urlencode($c['q']) ?>">
                     <img class="category-icon" src="<?= htmlspecialchars($c['img']) ?>" alt="<?= htmlspecialchars($c['key']) ?>" loading="lazy">
                     <strong><?= htmlspecialchars($c['key']) ?></strong>
                     <?php if ($count > 0): ?><span><?= $count ?> products</span><?php endif; ?>
@@ -1121,7 +1121,7 @@ include __DIR__ . '/partials/site-header.php';
     <section class="section" id="best-sellers" aria-label="Best sellers">
         <div class="section-head">
             <h2 class="section-title">Best Sellers<small>Loved by 1,200+ Sri Lankan artists</small></h2>
-            <a class="section-link" href="?q=#products">View all &rarr;</a>
+            <a class="section-link" href="shop.php">View all &rarr;</a>
         </div>
         <div class="rail">
             <?php foreach ($bestSellers as $i => $product): ?>

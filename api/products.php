@@ -12,18 +12,80 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 try {
     $q = trim((string)($_GET['q'] ?? ''));
     $page = max(1, (int)($_GET['page'] ?? 1));
-    $perPage = min(60, max(1, (int)($_GET['per_page'] ?? 24)));
+    $perPage = min(96, max(1, (int)($_GET['per_page'] ?? 24)));
     $offset = ($page - 1) * $perPage;
 
-    $repo = new ProductRepository(appDb());
-    $products = $repo->listProducts($q, $perPage, $offset);
+    /* Multi-value params accept either CSV or repeated keys. */
+    $multi = static function ($v): array {
+        if (is_array($v)) {
+            $out = [];
+            foreach ($v as $item) {
+                foreach (explode(',', (string)$item) as $piece) {
+                    $piece = trim($piece);
+                    if ($piece !== '') $out[] = $piece;
+                }
+            }
+            return $out;
+        }
+        if (is_string($v) && $v !== '') {
+            $out = [];
+            foreach (explode(',', $v) as $piece) {
+                $piece = trim($piece);
+                if ($piece !== '') $out[] = $piece;
+            }
+            return $out;
+        }
+        return [];
+    };
 
-    JsonResponse::send([
-        'success' => true,
-        'page' => $page,
+    $filters = [
+        'q'          => $q,
+        'categories' => $multi($_GET['category'] ?? $_GET['categories'] ?? null),
+        'brands'     => $multi($_GET['brand']    ?? $_GET['brands']    ?? null),
+        'min_price'  => isset($_GET['min']) && $_GET['min'] !== '' ? (float)$_GET['min'] : '',
+        'max_price'  => isset($_GET['max']) && $_GET['max'] !== '' ? (float)$_GET['max'] : '',
+        'in_stock'   => !empty($_GET['in_stock']) && $_GET['in_stock'] !== '0',
+        'sort'       => (string)($_GET['sort'] ?? 'relevance'),
+        'limit'      => $perPage,
+        'offset'     => $offset,
+    ];
+
+    $repo = new ProductRepository(appDb());
+
+    /* Back-compat: legacy callers without filters use the simple path. */
+    $hasAdvanced = !empty($filters['categories']) || !empty($filters['brands'])
+        || $filters['min_price'] !== '' || $filters['max_price'] !== ''
+        || $filters['in_stock'] || ($filters['sort'] !== 'relevance')
+        || !empty($_GET['with_facets']);
+
+    if (!$hasAdvanced) {
+        $products = $repo->listProducts($q, $perPage, $offset);
+        JsonResponse::send([
+            'success'  => true,
+            'page'     => $page,
+            'per_page' => $perPage,
+            'products' => $products,
+        ]);
+        exit;
+    }
+
+    $result = $repo->searchProducts($filters);
+    $payload = [
+        'success'  => true,
+        'page'     => $page,
         'per_page' => $perPage,
-        'products' => $products,
-    ]);
+        'total'    => $result['total'],
+        'products' => $result['products'],
+    ];
+    if (!empty($_GET['with_facets'])) {
+        $payload['facets'] = [
+            'categories'  => $repo->listAllCategories(),
+            'brands'      => $repo->listAllBrands(),
+            'price_range' => $repo->getPriceRange(),
+        ];
+    }
+    JsonResponse::send($payload);
 } catch (Throwable $e) {
     JsonResponse::send(['success' => false, 'error' => $e->getMessage()], 500);
 }
+
