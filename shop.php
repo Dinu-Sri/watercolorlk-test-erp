@@ -773,7 +773,9 @@ include __DIR__ . '/partials/site-header.php';
 
     /* ---------- Pagination ---------- */
     function renderPagination(total) {
-        var totalPages = Math.max(1, Math.ceil(total / state.per_page));
+        var per = state.per_page > 0 ? state.per_page : <?= (int)$perPage ?>;
+        var totalPages = Math.max(1, Math.ceil((total || 0) / per));
+        if (!isFinite(totalPages) || totalPages > 999) totalPages = 1;
         if (totalPages <= 1) { $pagination.innerHTML = ''; return; }
         var cur = state.page;
         var pages = [];

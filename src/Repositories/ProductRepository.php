@@ -375,14 +375,20 @@ SQL;
 
         $q = trim((string)($filters['q'] ?? ''));
         if ($q !== '') {
+            /* PDO has EMULATE_PREPARES=false, so each placeholder must be unique. */
             $where[] = "(
-                LOWER(p.name) LIKE LOWER(:q)
-                OR LOWER(COALESCE(po.override_title, '')) LIKE LOWER(:q)
-                OR LOWER(p.sku) LIKE LOWER(:q)
-                OR LOWER(COALESCE(p.category_name, '')) LIKE LOWER(:q)
-                OR LOWER(COALESCE(p.brand_name, '')) LIKE LOWER(:q)
+                LOWER(p.name) LIKE LOWER(:q_name)
+                OR LOWER(COALESCE(po.override_title, '')) LIKE LOWER(:q_title)
+                OR LOWER(p.sku) LIKE LOWER(:q_sku)
+                OR LOWER(COALESCE(p.category_name, '')) LIKE LOWER(:q_cat)
+                OR LOWER(COALESCE(p.brand_name, '')) LIKE LOWER(:q_brand)
             )";
-            $params['q'] = '%' . $q . '%';
+            $like = '%' . $q . '%';
+            $params['q_name']  = $like;
+            $params['q_title'] = $like;
+            $params['q_sku']   = $like;
+            $params['q_cat']   = $like;
+            $params['q_brand'] = $like;
         }
 
         $categories = array_filter(array_map('trim', (array)($filters['categories'] ?? [])), fn($v) => $v !== '');
@@ -488,6 +494,7 @@ SQL;
         $countSql = "SELECT COUNT(*) AS c FROM products p LEFT JOIN product_overrides po ON po.product_id = p.id WHERE $whereSql";
         $countStmt = $this->db->prepare($countSql);
         foreach ($params as $key => $value) {
+            /* relevance ORDER BY params do not appear in WHERE — skip them. */
             if (in_array($key, ['rel_exact', 'rel_prefix'], true)) continue;
             $countStmt->bindValue(':' . $key, $value, PDO::PARAM_STR);
         }

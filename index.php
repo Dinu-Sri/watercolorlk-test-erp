@@ -181,7 +181,7 @@ function renderDealCard(array $product, ?int $rank = null): string
     if ($saved > 0) {
         $html .= '<div class="deal-save">You save LKR ' . number_format($saved, 0) . '</div>';
     }
-    $html .= '<div class="deal-meta"><span class="stars" aria-label="Rating">â˜…â˜…â˜…â˜…â˜…</span><span class="meta-dot">' . $rating . '</span><span class="meta-dot">' . $sold . '+ sold</span></div>';
+    $html .= '<div class="deal-meta"><span class="stars" aria-label="Rating">&#9733;&#9733;&#9733;&#9733;&#9733;</span><span class="meta-dot">' . $rating . '</span><span class="meta-dot">' . $sold . '+ sold</span></div>';
     $html .= '<div class="scarcity-bar"><span style="width:' . (int)$scarcityPct . '%"></span></div>';
     $html .= $stockNote;
     $html .= '</div>';
@@ -1030,7 +1030,7 @@ include __DIR__ . '/partials/site-header.php';
                 <a class="btn-secondary" href="#best-sellers">Best sellers &rarr;</a>
             </div>
             <div class="hero-trust">
-                <span><span class="stars">â˜…â˜…â˜…â˜…â˜…</span> <strong style="color:var(--brand-navy)"><?= $avgRating ?></strong>&nbsp;<?= htmlspecialchars($reviewCountLabel) ?></span>
+                <span><span class="stars">&#9733;&#9733;&#9733;&#9733;&#9733;</span> <strong style="color:var(--brand-navy)"><?= $avgRating ?></strong>&nbsp;<?= htmlspecialchars($reviewCountLabel) ?></span>
                 <span class="sep"></span>
                 <span>ðŸ‡±ðŸ‡° Free delivery > LKR 5,000</span>
                 <span class="sep"></span>
@@ -1171,7 +1171,7 @@ include __DIR__ . '/partials/site-header.php';
                 <img src="assets/images/google full logo.svg" alt="Google" onerror="this.style.display='none'">
                 <span class="num"><?= $avgRating ?></span>
                 <div>
-                    <div class="stars" aria-hidden="true">â˜…â˜…â˜…â˜…â˜…</div>
+                    <div class="stars" aria-hidden="true">&#9733;&#9733;&#9733;&#9733;&#9733;</div>
                     <div class="based">Based on <?= htmlspecialchars($reviewCountLabel) ?></div>
                 </div>
             </div>
@@ -1186,7 +1186,7 @@ include __DIR__ . '/partials/site-header.php';
                 $initial = strtoupper(mb_substr((string)($review['author'] ?? 'A'), 0, 1));
                 $text = htmlspecialchars(normalizeReviewText((string)($review['review_text'] ?? '')));
                 $rating = (float)($review['rating'] ?? 5);
-                $stars = str_repeat('â˜…', (int)round($rating)) . str_repeat('â˜†', max(0, 5 - (int)round($rating)));
+                $stars = str_repeat('&#9733;', (int)round($rating)) . str_repeat('&#9734;', max(0, 5 - (int)round($rating)));
                 $displayDate = 'Recently';
                 if (!empty($review['review_date'])) {
                     $ts = strtotime((string)$review['review_date']);
