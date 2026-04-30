@@ -13,12 +13,12 @@ final class OrderRepository
         $this->db->beginTransaction();
         try {
             $stmt = $this->db->prepare(
-                'INSERT INTO orders (customer_name, customer_phone, customer_email, payment_method, notes,
+                'INSERT INTO orders (customer_name, customer_phone, customer_email, user_id, payment_method, notes,
                                      status, erp_sync_status,
                                      subtotal_amount, shipping_amount, discount_amount, total_amount,
                                      coupon_id, coupon_code,
                                      created_at, updated_at)
-                 VALUES (:name, :phone, :email, :payment, :notes,
+                 VALUES (:name, :phone, :email, :user_id, :payment, :notes,
                          :status, :erp_sync_status,
                          :subtotal, :shipping, :discount, :total,
                          :coupon_id, :coupon_code,
@@ -28,6 +28,7 @@ final class OrderRepository
                 'name' => $payload['customer_name'],
                 'phone' => $payload['customer_phone'],
                 'email' => $payload['customer_email'] ?? null,
+                'user_id' => isset($payload['user_id']) && $payload['user_id'] ? (int)$payload['user_id'] : null,
                 'payment' => $payload['payment_method'],
                 'notes' => $payload['notes'] ?? null,
                 'status' => 'pending',
@@ -122,5 +123,84 @@ final class OrderRepository
             'sync_error' => substr($error, 0, 1000),
             'id' => $orderId,
         ]);
+    }
+
+    /* ===== Customer (account) helpers ===== */
+
+    public function listForUser(int $userId, int $limit = 50): array
+    {
+        $st = $this->db->prepare(
+            'SELECT id, status, erp_sync_status, total_amount, payment_method, created_at,
+                    (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count
+             FROM orders o
+             WHERE user_id = :u
+             ORDER BY id DESC
+             LIMIT ' . max(1, min(200, $limit))
+        );
+        $st->execute([':u' => $userId]);
+        return $st->fetchAll();
+    }
+
+    public function getUserOrder(int $userId, int $orderId): ?array
+    {
+        $st = $this->db->prepare('SELECT * FROM orders WHERE id = :id AND user_id = :u LIMIT 1');
+        $st->execute([':id' => $orderId, ':u' => $userId]);
+        $order = $st->fetch();
+        if (!$order) return null;
+        $is = $this->db->prepare('SELECT * FROM order_items WHERE order_id = :id ORDER BY id ASC');
+        $is->execute([':id' => $orderId]);
+        $order['items'] = $is->fetchAll();
+        return $order;
+    }
+
+    /* ===== Admin listing ===== */
+
+    public function adminList(array $filters = []): array
+    {
+        $page = max(1, (int)($filters['page'] ?? 1));
+        $perPage = max(1, min(100, (int)($filters['per_page'] ?? 25)));
+        $offset = ($page - 1) * $perPage;
+
+        $where = []; $params = [];
+        if (!empty($filters['q'])) {
+            $where[] = '(o.id = :qid OR o.customer_name LIKE :q OR o.customer_phone LIKE :q OR o.customer_email LIKE :q)';
+            $params[':q'] = '%' . $filters['q'] . '%';
+            $params[':qid'] = ctype_digit((string)$filters['q']) ? (int)$filters['q'] : 0;
+        }
+        if (!empty($filters['status']) && in_array($filters['status'], ['pending','processing','completed','cancelled'], true)) {
+            $where[] = 'o.status = :st';
+            $params[':st'] = $filters['status'];
+        }
+        if (!empty($filters['sync']) && in_array($filters['sync'], ['pending','synced','failed'], true)) {
+            $where[] = 'o.erp_sync_status = :ss';
+            $params[':ss'] = $filters['sync'];
+        }
+        $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+        $countSt = $this->db->prepare("SELECT COUNT(*) AS c FROM orders o $whereSql");
+        $countSt->execute($params);
+        $total = (int)$countSt->fetch()['c'];
+
+        $sql = "SELECT o.*,
+                       (SELECT COUNT(*) FROM order_items oi WHERE oi.order_id = o.id) AS item_count
+                FROM orders o
+                $whereSql
+                ORDER BY o.id DESC
+                LIMIT $perPage OFFSET $offset";
+        $st = $this->db->prepare($sql);
+        $st->execute($params);
+        return [
+            'rows' => $st->fetchAll(),
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+        ];
+    }
+
+    public function setStatus(int $orderId, string $status): void
+    {
+        if (!in_array($status, ['pending','processing','completed','cancelled'], true)) return;
+        $this->db->prepare('UPDATE orders SET status = :s, updated_at = NOW() WHERE id = :id')
+                 ->execute([':s' => $status, ':id' => $orderId]);
     }
 }

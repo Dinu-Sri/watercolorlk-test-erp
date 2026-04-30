@@ -1931,9 +1931,60 @@ document.querySelectorAll('.thumb').forEach((thumb) => {
 
 function changeQty(delta) {
     const input = document.getElementById('qty');
-    const next = Math.max(1, Number(input.value || 1) + delta);
+    const max = Number(window.WLK_MAX_QTY || 0);
+    let next = Math.max(1, Number(input.value || 1) + delta);
+    if (max > 0 && next > max) next = max;
     input.value = String(next);
 }
+
+/* Initial max-qty cap from server-side stock. */
+window.WLK_MAX_QTY = <?= max(0, (int)$stock) ?>;
+
+/* Live variant updates: re-render price, SKU, stock, and cap qty on change. */
+(function () {
+    const variantInputs = document.querySelectorAll('input[name="variant"]');
+    if (!variantInputs.length) return;
+
+    function fmtLKR(n) {
+        return 'LKR ' + Number(n || 0).toLocaleString('en-LK', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    }
+
+    function applySelected() {
+        const sel = document.querySelector('input[name="variant"]:checked');
+        if (!sel) return;
+        const price = Number(sel.dataset.price || 0);
+        const stock = Number(sel.dataset.stock || 0);
+        const sku = sel.dataset.sku || '';
+
+        const priceEl = document.querySelector('.price-hero .price');
+        if (priceEl) priceEl.textContent = fmtLKR(price);
+
+        const skuEl = document.querySelector('[data-sku-display]');
+        if (skuEl) skuEl.textContent = sku;
+
+        const scarcityLeft = document.querySelector('.scarcity .scarcity-line .left');
+        if (scarcityLeft) {
+            scarcityLeft.innerHTML = stock <= 0
+                ? '<span class="dot"></span>Out of stock'
+                : '<span class="dot"></span>Only ' + Math.floor(stock) + ' left in stock!';
+        }
+
+        const cartBtn = document.querySelector('.btn-cart');
+        if (cartBtn) {
+            if (stock <= 0) { cartBtn.setAttribute('disabled', 'disabled'); cartBtn.textContent = 'Sold out'; }
+            else { cartBtn.removeAttribute('disabled'); cartBtn.textContent = 'Add to Cart'; }
+        }
+
+        window.WLK_MAX_QTY = Math.floor(stock);
+        const qtyInput = document.getElementById('qty');
+        if (qtyInput && Number(qtyInput.value) > window.WLK_MAX_QTY) {
+            qtyInput.value = String(Math.max(1, window.WLK_MAX_QTY));
+        }
+    }
+
+    variantInputs.forEach(r => r.addEventListener('change', applySelected));
+    applySelected();
+})();
 
 function getCartItem() {
     if (product.kind === 'combined') {

@@ -53,6 +53,21 @@ try {
     $repo = new ProductRepository(appDb());
 
     $result = $repo->searchProducts($filters);
+
+    /* Merge visible storefront extras (combined + pack) on page 1 only when no
+       category/brand filter active. */
+    if ($page === 1 && empty($filters['categories']) && empty($filters['brands'])) {
+        try {
+            $extras = $repo->listVisibleStorefrontExtras($q, $filters['min_price'], $filters['max_price']);
+            if ($filters['in_stock']) {
+                $extras = array_values(array_filter($extras, static fn(array $r): bool => (float)$r['stock_qty'] > 0));
+            }
+            if (!empty($extras)) {
+                $result['products'] = array_merge($extras, $result['products']);
+                $result['total'] = (int)$result['total'] + count($extras);
+            }
+        } catch (Throwable $e) { /* ignore */ }
+    }
     $payload = [
         'success'  => true,
         'page'     => $page,

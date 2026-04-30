@@ -1,6 +1,27 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/bootstrap.php';
+
+$currentUser = appUserAuth()->currentUser();
+$prefill = [
+    'name' => $currentUser['full_name'] ?? '',
+    'phone' => $currentUser['phone'] ?? '',
+    'email' => $currentUser['email'] ?? '',
+    'address' => '',
+    'city' => '',
+];
+if ($currentUser) {
+    try {
+        $repo = new UserRepository(appDb());
+        $defAddr = $repo->defaultAddress((int)$currentUser['id']);
+        if ($defAddr) {
+            $prefill['name'] = $prefill['name'] ?: ($defAddr['full_name'] ?? '');
+            $prefill['phone'] = $prefill['phone'] ?: ($defAddr['phone'] ?? '');
+            $prefill['address'] = (string)($defAddr['address_line'] ?? '');
+            $prefill['city'] = (string)($defAddr['city'] ?? '');
+        }
+    } catch (Throwable $e) { /* ignore */ }
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -236,7 +257,7 @@ include __DIR__ . '/partials/site-header.php';
                 <div class="cx-row two">
                     <div class="cx-field" data-required>
                         <label for="cxPhone">Phone <span class="opt">(WhatsApp preferred)</span></label>
-                        <input type="tel" id="cxPhone" name="customer_phone" autocomplete="tel" placeholder="07X XXX XXXX">
+                        <input type="tel" id="cxPhone" name="customer_phone" autocomplete="tel" placeholder="07X XXX XXXX" value="<?= htmlspecialchars((string)$prefill['phone']) ?>">
                         <span class="hint">
                             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 3.5A10 10 0 0 0 4 16l-1 5 5-1A10 10 0 1 0 20 3.5z"/></svg>
                             We'll send tracking via WhatsApp
@@ -252,7 +273,7 @@ include __DIR__ . '/partials/site-header.php';
                 <div class="cx-row" style="margin-top:10px;">
                     <div class="cx-field">
                         <label for="cxEmail">Email <span class="opt">(optional)</span></label>
-                        <input type="email" id="cxEmail" name="customer_email" autocomplete="email" placeholder="for receipt &amp; order updates">
+                        <input type="email" id="cxEmail" name="customer_email" autocomplete="email" placeholder="for receipt &amp; order updates" value="<?= htmlspecialchars((string)$prefill['email']) ?>">
                         <span class="err">Enter a valid email.</span>
                     </div>
                 </div>
@@ -263,12 +284,12 @@ include __DIR__ . '/partials/site-header.php';
                 <div class="cx-row">
                     <div class="cx-field" data-required>
                         <label for="cxName">Full name</label>
-                        <input type="text" id="cxName" name="customer_name" autocomplete="name" placeholder="As on the parcel">
+                        <input type="text" id="cxName" name="customer_name" autocomplete="name" placeholder="As on the parcel" value="<?= htmlspecialchars((string)$prefill['name']) ?>">
                         <span class="err">Name is required.</span>
                     </div>
                     <div class="cx-field" data-required>
                         <label for="cxAddress">Delivery address</label>
-                        <textarea id="cxAddress" name="address" rows="3" autocomplete="street-address" placeholder="House no, street, village, city, postal code" style="resize:vertical;"></textarea>
+                        <textarea id="cxAddress" name="address" rows="3" autocomplete="street-address" placeholder="House no, street, village, city, postal code" style="resize:vertical;"><?= htmlspecialchars(trim($prefill['address'] . ($prefill['city'] ? "\n" . $prefill['city'] : ''))) ?></textarea>
                         <span class="hint" style="color:#6b7388;">Include landmarks if helpful for the courier</span>
                         <span class="err">Address is required.</span>
                     </div>
@@ -503,7 +524,7 @@ include __DIR__ . '/partials/site-header.php';
                 ['customer_phone','alt_phone','customer_email','customer_name','address','notes'].forEach(function(k) {
                     var map = { customer_phone:'cxPhone', alt_phone:'cxAltPhone', customer_email:'cxEmail', customer_name:'cxName', address:'cxAddress', notes:'cxNotes' };
                     var el = document.getElementById(map[k]);
-                    if (el && d[k]) el.value = d[k];
+                    if (el && d[k] && !el.value) el.value = d[k];
                 });
                 if (d.payment_method) {
                     var pm = form.querySelector('input[name=payment_method][value="' + d.payment_method + '"]');

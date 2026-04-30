@@ -16,11 +16,15 @@ require_once __DIR__ . '/src/Repositories/CategoryRepository.php';
 require_once __DIR__ . '/src/Repositories/FlashDealRepository.php';
 require_once __DIR__ . '/src/Repositories/CouponRepository.php';
 require_once __DIR__ . '/src/Repositories/AdminUserRepository.php';
+require_once __DIR__ . '/src/Repositories/UserRepository.php';
 require_once __DIR__ . '/src/Services/ErpClient.php';
 require_once __DIR__ . '/src/Services/CatalogSyncService.php';
 require_once __DIR__ . '/src/Services/OrderSyncService.php';
 require_once __DIR__ . '/src/Services/CouponService.php';
 require_once __DIR__ . '/src/Services/AdminAuth.php';
+require_once __DIR__ . '/src/Services/UserAuth.php';
+require_once __DIR__ . '/src/Services/Mailer.php';
+require_once __DIR__ . '/src/Services/GoogleOAuth.php';
 
 function appDb(): PDO
 {
@@ -58,4 +62,20 @@ function appErpClient(): ErpClient
     ]);
 
     return $client;
+}
+
+function appUserAuth(): UserAuth
+{
+    static $auth = null;
+    if ($auth instanceof UserAuth) return $auth;
+    $auth = new UserAuth(new UserRepository(appDb()));
+    return $auth;
+}
+
+function appMailer(): Mailer
+{
+    static $m = null;
+    if ($m instanceof Mailer) return $m;
+    $m = new Mailer();
+    return $m;
 }

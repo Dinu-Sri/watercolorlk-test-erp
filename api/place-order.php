@@ -260,6 +260,9 @@ try {
     $payload['coupon_id']       = $couponId;
     $payload['coupon_code']     = $couponCode;
 
+    /* Attach logged-in user (if any) so order shows up in their account. */
+    $payload['user_id'] = appUserAuth()->currentUserId();
+
     $orderRepo = new OrderRepository($db);
     $orderId = $orderRepo->createOrder($payload);
 
@@ -285,6 +288,51 @@ try {
     } catch (Throwable $syncError) {
         $orderRepo->markSyncFailed($orderId, $syncError->getMessage());
         $syncStatus = 'failed';
+    }
+
+    /* Order confirmation email (best-effort, non-fatal). */
+    if (!empty($payload['customer_email'])) {
+        try {
+            $rows = '';
+            foreach ($resolvedItems as $it) {
+                if ($it['kind'] === 'pack_child') continue; /* hide as part of parent */
+                $qty = rtrim(rtrim(number_format((float)$it['quantity'], 2), '0'), '.');
+                $line = (float)$it['unit_price'] * (float)$it['quantity'];
+                $rows .= '<tr>'
+                       . '<td style="padding:6px 8px;border-bottom:1px solid #eef0f4;">' . htmlspecialchars((string)$it['display_label']) . '</td>'
+                       . '<td style="padding:6px 8px;border-bottom:1px solid #eef0f4;text-align:center;">' . htmlspecialchars($qty) . '</td>'
+                       . '<td style="padding:6px 8px;border-bottom:1px solid #eef0f4;text-align:right;">LKR ' . number_format($line, 2) . '</td>'
+                       . '</tr>';
+            }
+            $totalsHtml = '<table style="width:100%;border-collapse:collapse;margin-top:10px;font:600 .92rem/1.4 system-ui,sans-serif;color:#0f2440;">'
+                       . '<tr><td>Subtotal</td><td style="text-align:right;">LKR ' . number_format($subtotal, 2) . '</td></tr>';
+            if ($couponDiscount > 0) {
+                $totalsHtml .= '<tr><td>Discount' . ($couponCode ? ' (' . htmlspecialchars($couponCode) . ')' : '') . '</td>'
+                            . '<td style="text-align:right;color:#17633e;">− LKR ' . number_format($couponDiscount, 2) . '</td></tr>';
+            }
+            $totalsHtml .= '<tr><td>Shipping</td><td style="text-align:right;">' . ($shipping == 0.0 ? 'FREE' : 'LKR ' . number_format($shipping, 2)) . '</td></tr>'
+                        . '<tr><td style="font-weight:800;border-top:1px solid #0f2440;padding-top:6px;">Total</td>'
+                        . '<td style="text-align:right;font-weight:800;border-top:1px solid #0f2440;padding-top:6px;">LKR ' . number_format($total, 2) . '</td></tr>'
+                        . '</table>';
+            $body = '<p>Hi ' . htmlspecialchars((string)$payload['customer_name']) . ',</p>'
+                  . '<p>Thanks for your order — we\'ve received it and will be in touch on WhatsApp shortly.</p>'
+                  . '<p style="font:700 .95rem/1 \'Montserrat\',sans-serif;color:#0f2440;margin:18px 0 6px;">Order #' . (int)$orderId . '</p>'
+                  . '<table style="width:100%;border-collapse:collapse;font:400 .92rem/1.4 system-ui,sans-serif;color:#0f2440;">'
+                  . '<thead><tr style="text-align:left;background:#fff7e8;">'
+                  . '<th style="padding:6px 8px;">Item</th><th style="padding:6px 8px;text-align:center;">Qty</th><th style="padding:6px 8px;text-align:right;">Total</th>'
+                  . '</tr></thead><tbody>' . $rows . '</tbody></table>'
+                  . $totalsHtml;
+            $cta = appUserAuth()->currentUserId() ? (SITE_URL . '/account/order.php?id=' . (int)$orderId) : '';
+            $html = appMailer()->renderLayout(
+                'Order received · Watercolor.LK',
+                $body,
+                $cta,
+                $cta ? 'View order in my account' : ''
+            );
+            appMailer()->send((string)$payload['customer_email'], 'Order #' . (int)$orderId . ' · Watercolor.LK', $html);
+        } catch (Throwable $emailErr) {
+            error_log('order-email-failed: ' . $emailErr->getMessage());
+        }
     }
 
     JsonResponse::send([

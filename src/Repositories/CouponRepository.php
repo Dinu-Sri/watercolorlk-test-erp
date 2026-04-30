@@ -8,7 +8,12 @@ final class CouponRepository
 
     public function listAll(): array
     {
-        $stmt = $this->db->query('SELECT * FROM coupons ORDER BY is_active DESC, created_at DESC');
+        $sql = "SELECT c.*,
+                       (SELECT COUNT(*) FROM coupon_redemptions r WHERE r.coupon_id = c.id) AS redemption_count,
+                       (SELECT COALESCE(SUM(r.discount_amount), 0) FROM coupon_redemptions r WHERE r.coupon_id = c.id) AS redemption_total
+                FROM coupons c
+                ORDER BY c.is_active DESC, c.created_at DESC";
+        $stmt = $this->db->query($sql);
         return $stmt ? $stmt->fetchAll() : [];
     }
 

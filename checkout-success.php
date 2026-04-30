@@ -108,6 +108,19 @@ include __DIR__ . '/partials/site-header.php';
                 <div class="row"><div class="lbl">Phone</div><div class="val"><?= htmlspecialchars((string)$order['customer_phone']) ?></div></div>
                 <div class="row"><div class="lbl">Status</div><div class="val">Pending confirmation</div></div>
             </div>
+
+            <div class="ok-totals" style="max-width:480px;margin:14px auto 0;background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 18px;text-align:left;">
+                <table style="width:100%;border-collapse:collapse;font:600 .92rem/1.6 'Source Sans 3',sans-serif;color:#0f2440;">
+                    <tr><td>Subtotal</td><td style="text-align:right;">LKR <?= number_format((float)$order['subtotal_amount'], 2) ?></td></tr>
+                    <?php if ((float)$order['discount_amount'] > 0): ?>
+                        <tr><td>Discount<?= !empty($order['coupon_code']) ? ' (' . htmlspecialchars((string)$order['coupon_code']) . ')' : '' ?></td>
+                            <td style="text-align:right;color:#17633e;">− LKR <?= number_format((float)$order['discount_amount'], 2) ?></td></tr>
+                    <?php endif; ?>
+                    <tr><td>Shipping</td><td style="text-align:right;"><?= (float)$order['shipping_amount'] === 0.0 ? 'FREE' : 'LKR ' . number_format((float)$order['shipping_amount'], 2) ?></td></tr>
+                    <tr><td style="border-top:1px solid var(--line);padding-top:8px;font-weight:800;">Total</td>
+                        <td style="border-top:1px solid var(--line);padding-top:8px;text-align:right;font-weight:800;">LKR <?= number_format((float)$order['total_amount'], 2) ?></td></tr>
+                </table>
+            </div>
         <?php endif; ?>
 
         <div class="steps">
@@ -134,7 +147,11 @@ include __DIR__ . '/partials/site-header.php';
                 Confirm on WhatsApp
             </a>
             <a class="primary" href="index.php">Continue shopping</a>
-            <a class="ghost" href="cart.php">View cart</a>
+            <?php if (appUserAuth()->currentUserId() && $orderId > 0): ?>
+                <a class="ghost" href="account/order.php?id=<?= $orderId ?>">View in my account</a>
+            <?php else: ?>
+                <a class="ghost" href="cart.php">View cart</a>
+            <?php endif; ?>
         </div>
     </div>
 </main>

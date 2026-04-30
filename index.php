@@ -7,6 +7,15 @@ require_once __DIR__ . '/bootstrap.php';
 $repo = new ProductRepository(appDb());
 $initialQuery = trim((string)($_GET['q'] ?? ''));
 $products = $repo->listProducts($initialQuery, 24, 0);
+
+/* Merge visible storefront extras (combined + pack) onto the home grid. */
+try {
+    $extras = $repo->listVisibleStorefrontExtras($initialQuery);
+    if (!empty($extras)) {
+        $products = array_merge($extras, $products);
+    }
+} catch (Throwable $e) { /* ignore */ }
+
 $initialProductsJson = json_encode($products, JSON_UNESCAPED_SLASHES);
 
 $flashDeals = [];
@@ -23,6 +32,15 @@ try {
 try {
     $bestSellers = $repo->listBestSellers(10);
 } catch (Throwable $e) { $bestSellers = []; }
+
+/* Surface curated combined + pack products at the top of the best-sellers strip. */
+try {
+    $extras = $repo->listVisibleStorefrontExtras('');
+    if (!empty($extras)) {
+        $bestSellers = array_merge($extras, $bestSellers);
+        $bestSellers = array_slice($bestSellers, 0, 10);
+    }
+} catch (Throwable $e) { /* ignore */ }
 
 try {
     $allDeals = array_filter($flashDeals, static function (array $row): bool {

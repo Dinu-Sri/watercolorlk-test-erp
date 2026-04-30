@@ -19,6 +19,8 @@ $nav = [
     'categories' => ['Categories', 'categories.php'],
     'flash' => ['Flash Deals', 'flash-deals.php'],
     'coupons' => ['Coupons', 'coupons.php'],
+    'orders' => ['Orders', 'orders.php'],
+    'users' => ['Users', 'users.php'],
     'reviews' => ['Google Reviews', 'reviews.php'],
 ];
 ?><!doctype html>

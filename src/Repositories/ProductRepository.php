@@ -554,6 +554,105 @@ SQL;
         return ['products' => $rows, 'total' => $total];
     }
 
+    /**
+     * Visible storefront-only products of kind 'combined' or 'pack',
+     * normalized into the same shape as searchProducts() rows so they can be
+     * merged into shop / index / search listings.
+     *
+     * Stock for combined = max child stock; for pack = parent.stock_qty if set,
+     * else floor(min(child.stock_qty / pack_qty)).
+     */
+    public function listVisibleStorefrontExtras(string $q = '', $minPrice = '', $maxPrice = ''): array
+    {
+        $where = ["sp.is_visible = 1", "sp.kind IN ('combined','pack')"];
+        $params = [];
+        $q = trim($q);
+        if ($q !== '') {
+            $where[] = '(LOWER(sp.title) LIKE LOWER(:q) OR LOWER(sp.slug) LIKE LOWER(:q))';
+            $params[':q'] = '%' . $q . '%';
+        }
+        if ($minPrice !== '' && is_numeric($minPrice)) {
+            $where[] = 'COALESCE(sp.base_price, 0) >= :minp';
+            $params[':minp'] = (float)$minPrice;
+        }
+        if ($maxPrice !== '' && is_numeric($maxPrice)) {
+            $where[] = 'COALESCE(sp.base_price, 0) <= :maxp';
+            $params[':maxp'] = (float)$maxPrice;
+        }
+        $whereSql = implode(' AND ', $where);
+
+        $sql = "SELECT sp.id AS storefront_id, sp.kind, sp.slug, sp.title AS display_name,
+                       sp.description AS display_description,
+                       sp.hero_image_url AS image_url,
+                       sp.base_price AS price, sp.compare_at_price AS original_price,
+                       sp.badge, sp.stock_qty AS sp_stock_qty,
+                       sp.updated_at
+                FROM storefront_products sp
+                WHERE $whereSql
+                ORDER BY sp.updated_at DESC, sp.id DESC
+                LIMIT 100";
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll();
+        if (!$rows) return [];
+
+        /* Compute effective stock per row. */
+        $childSt = $this->db->prepare(
+            "SELECT spc.parent_storefront_id, spc.context, spc.quantity AS pack_qty,
+                    p.stock_qty AS child_stock
+             FROM storefront_product_children spc
+             INNER JOIN products p ON p.id = spc.child_product_id
+             WHERE spc.parent_storefront_id = :pid"
+        );
+        $out = [];
+        foreach ($rows as $r) {
+            $childSt->execute([':pid' => (int)$r['storefront_id']]);
+            $kids = $childSt->fetchAll();
+            $stock = (float)($r['sp_stock_qty'] ?? 0);
+            if ($r['kind'] === 'combined') {
+                $maxStock = 0.0;
+                foreach ($kids as $k) {
+                    if ($k['context'] !== 'variant') continue;
+                    $maxStock = max($maxStock, (float)$k['child_stock']);
+                }
+                $stock = $maxStock;
+            } elseif ($r['kind'] === 'pack') {
+                $parentStock = (float)($r['sp_stock_qty'] ?? 0);
+                if ($parentStock > 0) {
+                    $stock = $parentStock;
+                } else {
+                    $minPossible = null;
+                    foreach ($kids as $k) {
+                        if ($k['context'] !== 'pack_item') continue;
+                        $pq = max(1.0, (float)$k['pack_qty']);
+                        $possible = floor((float)$k['child_stock'] / $pq);
+                        $minPossible = $minPossible === null ? $possible : min($minPossible, $possible);
+                    }
+                    $stock = $minPossible ?? 0;
+                }
+            }
+            $out[] = [
+                'id' => null,
+                'storefront_id' => (int)$r['storefront_id'],
+                'kind' => (string)$r['kind'],
+                'erp_product_id' => null,
+                'sku' => null,
+                'name' => (string)$r['display_name'],
+                'slug' => (string)$r['slug'],
+                'display_name' => (string)$r['display_name'],
+                'display_description' => (string)$r['display_description'],
+                'image_url' => (string)$r['image_url'],
+                'price' => (float)$r['price'],
+                'original_price' => $r['original_price'] !== null ? (float)$r['original_price'] : (float)$r['price'],
+                'stock_qty' => (float)$stock,
+                'category_name' => null,
+                'brand_name' => null,
+                'badge' => (string)$r['badge'],
+            ];
+        }
+        return $out;
+    }
+
     /** Distinct categories with counts of active products. */
     public function listAllCategories(): array
     {

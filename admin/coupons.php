@@ -14,10 +14,10 @@ require __DIR__ . '/_layout_top.php';
 ?>
 <div class="card" style="padding:0">
     <table>
-        <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Used</th><th>Window</th><th>Status</th><th></th></tr></thead>
+        <thead><tr><th>Code</th><th>Type</th><th>Value</th><th>Used</th><th>Redeemed</th><th>Discount given</th><th>Window</th><th>Status</th><th></th></tr></thead>
         <tbody>
         <?php if (!$coupons): ?>
-            <tr><td colspan="7" style="padding:30px; text-align:center; color:#6b7388">No coupons yet.</td></tr>
+            <tr><td colspan="9" style="padding:30px; text-align:center; color:#6b7388">No coupons yet.</td></tr>
         <?php else: foreach ($coupons as $c): ?>
             <tr>
                 <td><strong style="font-family:monospace; letter-spacing:.05em"><?= h($c['code']) ?></strong>
@@ -29,6 +29,8 @@ require __DIR__ . '/_layout_top.php';
                     <?php else: ?>Free shipping<?php endif; ?>
                 </td>
                 <td><?= (int)$c['used_count'] ?><?= $c['usage_limit'] !== null ? ' / ' . (int)$c['usage_limit'] : '' ?></td>
+                <td><strong><?= (int)($c['redemption_count'] ?? 0) ?></strong></td>
+                <td>LKR <?= number_format((float)($c['redemption_total'] ?? 0), 2) ?></td>
                 <td style="font-size:.85rem">
                     <?= $c['starts_at'] ? h(date('M j', strtotime((string)$c['starts_at']))) : '<span class="muted">always</span>' ?> →
                     <?= $c['ends_at'] ? h(date('M j', strtotime((string)$c['ends_at']))) : '<span class="muted">no end</span>' ?>

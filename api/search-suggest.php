@@ -30,6 +30,25 @@ try {
     $trending  = $repo->getTrendingSearches($q, 6);
     $products  = $repo->searchSuggestions($q, 6);
 
+    /* Surface combined+pack matches alongside ERP product matches. */
+    try {
+        $extras = $repo->listVisibleStorefrontExtras($q);
+        if (!empty($extras)) {
+            $extraSuggestions = array_map(static function (array $r): array {
+                return [
+                    'erp_product_id' => 0,
+                    'name' => $r['display_name'],
+                    'slug' => $r['slug'],
+                    'image_url' => $r['image_url'],
+                    'price' => (float)$r['price'],
+                    'kind' => $r['kind'],
+                ];
+            }, array_slice($extras, 0, 4));
+            $products = array_merge($extraSuggestions, $products);
+            $products = array_slice($products, 0, 8);
+        }
+    } catch (Throwable $e) { /* ignore */ }
+
     /* Brand suggestions: match brand_name LIKE q. */
     $brandStmt = appDb()->prepare(
         "SELECT TRIM(brand_name) AS name, COUNT(*) AS cnt

@@ -50,3 +50,23 @@ define('SYNC_WEBHOOK_KEY', (string)$cfg('SYNC_WEBHOOK_KEY', 'change-me'));
 define('GOOGLE_PLACE_ID', (string)$cfg('GOOGLE_PLACE_ID', ''));
 define('GOOGLE_PLACES_API_KEY', (string)$cfg('GOOGLE_PLACES_API_KEY', ''));
 define('GOOGLE_REVIEWS_URL', (string)$cfg('GOOGLE_REVIEWS_URL', ''));
+
+// Public site URL (used for absolute URLs in emails / OAuth redirects).
+define('SITE_URL', rtrim((string)$cfg('SITE_URL', ''), '/'));
+define('SITE_NAME', (string)$cfg('SITE_NAME', 'Watercolor.LK'));
+
+// Outgoing mail.
+define('MAIL_FROM',       (string)$cfg('MAIL_FROM', 'no-reply@watercolor.lk'));
+define('MAIL_FROM_NAME',  (string)$cfg('MAIL_FROM_NAME', SITE_NAME));
+define('MAIL_REPLY_TO',   (string)$cfg('MAIL_REPLY_TO', ''));
+define('MAIL_TRANSPORT',  (string)$cfg('MAIL_TRANSPORT', 'mail'));   // mail | smtp | log
+define('SMTP_HOST',       (string)$cfg('SMTP_HOST', ''));
+define('SMTP_PORT',       (int)   $cfg('SMTP_PORT', 587));
+define('SMTP_USER',       (string)$cfg('SMTP_USER', ''));
+define('SMTP_PASS',       (string)$cfg('SMTP_PASS', ''));
+define('SMTP_ENCRYPTION', (string)$cfg('SMTP_ENCRYPTION', 'tls'));   // tls | ssl | ''
+
+// Google Sign-In OAuth (Web application credentials).
+define('GOOGLE_OAUTH_CLIENT_ID',     (string)$cfg('GOOGLE_OAUTH_CLIENT_ID', ''));
+define('GOOGLE_OAUTH_CLIENT_SECRET', (string)$cfg('GOOGLE_OAUTH_CLIENT_SECRET', ''));
+define('GOOGLE_OAUTH_REDIRECT',      (string)$cfg('GOOGLE_OAUTH_REDIRECT', ''));

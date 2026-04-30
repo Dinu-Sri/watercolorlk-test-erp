@@ -49,7 +49,7 @@ $_wlkBase      = $_wlkProto . '://' . $_SERVER['HTTP_HOST'] . $_wlkScriptDir . '
             <div id="suggestions" class="suggestions"></div>
         </div>
         <div class="header-actions">
-            <a class="icon-btn" href="admin/index.php" aria-label="Account">
+            <a class="icon-btn" href="account/index.php" aria-label="Account">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="7" r="4"/></svg>
             </a>
             <a class="icon-btn" href="cart.php" aria-label="Cart" id="cartButton">

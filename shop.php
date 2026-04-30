@@ -82,6 +82,22 @@ try {
     $result = ['products' => [], 'total' => 0];
 }
 
+/* Merge visible storefront extras (combined + pack) on page 1 only when no
+   category/brand filter is active (those facets don't apply to bundles). */
+$extras = [];
+if ($page === 1 && empty($selectedCategories) && empty($selectedBrands)) {
+    try {
+        $extras = $repo->listVisibleStorefrontExtras($q, $minPrice, $maxPrice);
+        if (!empty($extras)) {
+            if (!empty($inStock)) {
+                $extras = array_values(array_filter($extras, static fn(array $r): bool => (float)$r['stock_qty'] > 0));
+            }
+            $result['products'] = array_merge($extras, $result['products']);
+            $result['total'] = (int)$result['total'] + count($extras);
+        }
+    } catch (Throwable $e) { /* ignore */ }
+}
+
 $initialProductsJson = json_encode($result['products'], JSON_UNESCAPED_SLASHES);
 $initialTotal        = (int)$result['total'];
 $facetsJson          = json_encode($facets, JSON_UNESCAPED_SLASHES);
@@ -551,6 +567,10 @@ include __DIR__ . '/partials/site-header.php';
         return String(name||'product').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') || 'product';
     }
     function productHref(p) {
+        if (p.kind === 'combined' || p.kind === 'pack') {
+            var s = (p.slug && p.slug.length) ? p.slug : buildSlug(p.display_name || p.name);
+            return (window.WLK_BASE || '') + 'product/' + encodeURIComponent(s);
+        }
         var slug = (p.slug && !/^product-\d+$/i.test(p.slug)) ? p.slug : buildSlug(p.display_name || p.name);
         return (window.WLK_BASE || '') + 'product/' + encodeURIComponent(slug) + '-' + Number(p.erp_product_id);
     }
@@ -729,7 +749,9 @@ include __DIR__ . '/partials/site-header.php';
         var brand = p.brand_name ? '<span class="brand">' + escapeHtml(p.brand_name) + '</span>' : '';
         var addBtn = stock <= 0
             ? '<button class="add" disabled type="button">Sold out</button>'
-            : '<button class="add" type="button" data-add="1" data-id="' + Number(p.erp_product_id) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 7H7"/></svg>Add to cart</button>';
+            : (p.kind === 'combined' || p.kind === 'pack'
+                ? '<a class="add" href="' + escapeHtml(productHref(p)) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M9 5l7 7-7 7"/></svg>' + (p.kind === 'pack' ? 'View pack' : 'Choose options') + '</a>'
+                : '<button class="add" type="button" data-add="1" data-id="' + Number(p.erp_product_id) + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 4h2l2.2 11.2a2 2 0 0 0 2 1.6h7.8a2 2 0 0 0 2-1.6L21 7H7"/></svg>Add to cart</button>');
 
         var data = encodeURIComponent(JSON.stringify({
             erp_product_id: Number(p.erp_product_id),
