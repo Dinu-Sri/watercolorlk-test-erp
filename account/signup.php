@@ -23,8 +23,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phone = trim((string)($_POST['phone'] ?? '')) ?: null;
         $prefill = ['email' => $email, 'full_name' => (string)$fullName, 'phone' => (string)$phone];
 
-        $res = $auth->signup($email, $password, $fullName, $phone);
-        if ($res['ok']) {
+        $rl = appRateLimiter();
+        $gate = $rl->check('signup', $email);
+        if (!$gate['ok']) {
+            $mins = max(1, (int)ceil($gate['retry_after'] / 60));
+            $err = 'Too many signup attempts. Please try again in ' . $mins . ' minute' . ($mins === 1 ? '' : 's') . '.';
+        } else {
+            $res = $auth->signup($email, $password, $fullName, $phone);
+            $rl->record('signup', $email, !empty($res['ok']));
+            if ($res['ok']) {
             $userId = (int)$res['user_id'];
             /* Send verification email (best-effort) */
             try {
@@ -43,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
         $err = $res['error'];
+        }
     }
 }
 

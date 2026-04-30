@@ -20,25 +20,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $token !== '') {
     if (!Csrf::check($_POST['_csrf'] ?? '')) {
         $err = 'Session expired. Please try again.';
     } else {
-        $pwd = (string)($_POST['password'] ?? '');
-        $pwd2 = (string)($_POST['password2'] ?? '');
-        if (strlen($pwd) < 8) {
-            $err = 'Password must be at least 8 characters.';
-        } elseif ($pwd !== $pwd2) {
-            $err = 'Passwords do not match.';
+        $rl = appRateLimiter();
+        $gate = $rl->check('reset', null);
+        if (!$gate['ok']) {
+            $mins = max(1, (int)ceil($gate['retry_after'] / 60));
+            $err = 'Too many attempts. Please try again in ' . $mins . ' minute' . ($mins === 1 ? '' : 's') . '.';
         } else {
-            $consumed = $repo->consumeToken($token, 'reset_password');
-            if (!$consumed) {
-                $err = 'This reset link is invalid or has expired.';
+            $pwd = (string)($_POST['password'] ?? '');
+            $pwd2 = (string)($_POST['password2'] ?? '');
+            if (strlen($pwd) < 8) {
+                $err = 'Password must be at least 8 characters.';
+                $rl->record('reset', null, false);
+            } elseif ($pwd !== $pwd2) {
+                $err = 'Passwords do not match.';
+                $rl->record('reset', null, false);
             } else {
-                $repo->update((int)$consumed['user_id'], [
-                    'password_hash' => password_hash($pwd, PASSWORD_BCRYPT),
-                ]);
-                /* Invalidate any other outstanding reset tokens for safety. */
-                $repo->invalidateTokens((int)$consumed['user_id'], 'reset_password');
-                $ok = true;
-                header('Location: login.php?password_reset=1');
-                exit;
+                $consumed = $repo->consumeToken($token, 'reset_password');
+                if (!$consumed) {
+                    $err = 'This reset link is invalid or has expired.';
+                    $rl->record('reset', null, false);
+                } else {
+                    $repo->update((int)$consumed['user_id'], [
+                        'password_hash' => password_hash($pwd, PASSWORD_BCRYPT),
+                    ]);
+                    /* Invalidate any other outstanding reset tokens for safety. */
+                    $repo->invalidateTokens((int)$consumed['user_id'], 'reset_password');
+                    $rl->record('reset', null, true);
+                    $ok = true;
+                    header('Location: login.php?password_reset=1');
+                    exit;
+                }
             }
         }
     }

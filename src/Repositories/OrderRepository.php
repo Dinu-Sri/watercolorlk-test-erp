@@ -5,6 +5,7 @@ declare(strict_types=1);
 final class OrderRepository
 {
     private ?bool $hasUserIdColumn = null;
+    private array $columnCache = [];
 
     public function __construct(private PDO $db)
     {
@@ -20,6 +21,19 @@ final class OrderRepository
             $this->hasUserIdColumn = false;
         }
         return $this->hasUserIdColumn;
+    }
+
+    private function ordersHasColumn(string $col): bool
+    {
+        if (array_key_exists($col, $this->columnCache)) return $this->columnCache[$col];
+        try {
+            $st = $this->db->prepare("SHOW COLUMNS FROM orders LIKE :c");
+            $st->execute([':c' => $col]);
+            $this->columnCache[$col] = $st->fetch() !== false;
+        } catch (Throwable $e) {
+            $this->columnCache[$col] = false;
+        }
+        return $this->columnCache[$col];
     }
 
     public function createOrder(array $payload): int
@@ -220,7 +234,37 @@ final class OrderRepository
     public function setStatus(int $orderId, string $status): void
     {
         if (!in_array($status, ['pending','processing','completed','cancelled'], true)) return;
-        $this->db->prepare('UPDATE orders SET status = :s, updated_at = NOW() WHERE id = :id')
-                 ->execute([':s' => $status, ':id' => $orderId]);
+
+        if ($status === 'cancelled') {
+            /* Restore local stock if not already restored. */
+            try {
+                $st = $this->db->prepare('SELECT status, ' . ($this->ordersHasColumn('stock_restored') ? 'stock_restored' : '0 AS stock_restored') . ' FROM orders WHERE id = :id LIMIT 1');
+                $st->execute([':id' => $orderId]);
+                $row = $st->fetch();
+                if ($row && (int)($row['stock_restored'] ?? 0) === 0 && (string)$row['status'] !== 'cancelled') {
+                    $itemSt = $this->db->prepare('SELECT product_id, quantity, kind FROM order_items WHERE order_id = :id');
+                    $itemSt->execute([':id' => $orderId]);
+                    $items = $itemSt->fetchAll();
+                    if ($items) {
+                        $stockSvc = new StockService($this->db);
+                        $stockSvc->restore($items);
+                    }
+                    if ($this->ordersHasColumn('stock_restored')) {
+                        $this->db->prepare('UPDATE orders SET stock_restored = 1 WHERE id = :id')
+                                 ->execute([':id' => $orderId]);
+                    }
+                }
+            } catch (Throwable $e) {
+                error_log('stock-restore-failed for order #' . $orderId . ': ' . $e->getMessage());
+            }
+        }
+
+        $sets = ['status = :s', 'updated_at = NOW()'];
+        $params = [':s' => $status, ':id' => $orderId];
+        if ($status === 'cancelled' && $this->ordersHasColumn('cancelled_at')) {
+            $sets[] = 'cancelled_at = NOW()';
+        }
+        $sql = 'UPDATE orders SET ' . implode(', ', $sets) . ' WHERE id = :id';
+        $this->db->prepare($sql)->execute($params);
     }
 }

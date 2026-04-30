@@ -25,7 +25,8 @@ require_once __DIR__ . '/src/Services/AdminAuth.php';
 require_once __DIR__ . '/src/Services/UserAuth.php';
 require_once __DIR__ . '/src/Services/Mailer.php';
 require_once __DIR__ . '/src/Services/GoogleOAuth.php';
-
+require_once __DIR__ . '/src/Services/RateLimiter.php';
+require_once __DIR__ . '/src/Services/StockService.php';
 function appDb(): PDO
 {
     static $pdo = null;
@@ -78,4 +79,12 @@ function appMailer(): Mailer
     if ($m instanceof Mailer) return $m;
     $m = new Mailer();
     return $m;
+}
+
+function appRateLimiter(): RateLimiter
+{
+    static $rl = null;
+    if ($rl instanceof RateLimiter) return $rl;
+    $rl = new RateLimiter(appDb());
+    return $rl;
 }

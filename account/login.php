@@ -20,12 +20,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email = trim((string)($_POST['email'] ?? ''));
         $password = (string)($_POST['password'] ?? '');
         $prefillEmail = $email;
-        $res = $auth->attemptPassword($email, $password);
-        if ($res['ok']) {
-            header('Location: ' . $next);
-            exit;
+
+        $rl = appRateLimiter();
+        $gate = $rl->check('login', $email);
+        if (!$gate['ok']) {
+            $mins = max(1, (int)ceil($gate['retry_after'] / 60));
+            $err = 'Too many login attempts. Please try again in ' . $mins . ' minute' . ($mins === 1 ? '' : 's') . '.';
+        } else {
+            $res = $auth->attemptPassword($email, $password);
+            $rl->record('login', $email, !empty($res['ok']));
+            if ($res['ok']) {
+                header('Location: ' . $next);
+                exit;
+            }
+            $err = $res['error'];
         }
-        $err = $res['error'];
     }
 }
 

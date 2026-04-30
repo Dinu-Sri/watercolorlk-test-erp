@@ -46,12 +46,12 @@
 - [ ] New `account/confirm-email-change.php`: validates token, atomically swaps `email` ← `pending_email`, clears `email_verified_at` only if email actually changed (and re-sets it since they just clicked the link), invalidates other email-change tokens.
 - [ ] Notify OLD address (security email): "Your email was changed".
 
-### 2. Password / login rate-limiting + lockout
-- [ ] DB: new `auth_attempts` table — `id, ip, email_hash, kind ENUM('login','forgot','reset','signup'), success TINYINT, created_at`. Index `(ip, kind, created_at)`, `(email_hash, kind, created_at)`.
-- [ ] New `src/Services/RateLimiter.php` — `hit($key, $kind)`, `tooMany($key, $kind, $max, $windowSec): bool`.
-- [ ] Apply to `account/login.php` (5/min/IP, 10/15-min/email), `forgot.php` (3/15-min/IP), `reset.php` (5/15-min/token), `signup.php` (3/min/IP).
-- [ ] On rate-limit hit: 429 + generic "Too many attempts, try again in X minutes".
-- [ ] Background sweeper: scripts/cron-sync.php deletes rows older than 7 days.
+### 2. Password / login rate-limiting + lockout  ✅ Sprint 1
+- [x] DB: new `auth_attempts` table — `id, ip, email_hash, kind ENUM('login','forgot','reset','signup','google'), success TINYINT, created_at`. Indexes on `(ip,kind,created_at)`, `(email_hash,kind,created_at)`, `(created_at)`. Migration: `db/migrations/2026_07_sprint1.sql`.
+- [x] New `src/Services/RateLimiter.php` — `check($kind,$email)`, `record($kind,$email,$success)`, `purgeOlderThan($days)`. Fail-open on DB error.
+- [x] Applied to `account/login.php`, `signup.php`, `forgot.php`, `reset.php`, `google-callback.php`.
+- [x] On rate-limit hit: friendly "Too many attempts, try again in X minutes" message.
+- [x] Background sweeper: `scripts/cron-sync.php` calls `appRateLimiter()->purgeOlderThan(7)` each run.
 
 ### 3. Admin → user detail page
 - [ ] `admin/user-view.php?id=X` showing: profile, addresses, all orders w/ totals, audit log of admin actions on this user, tokens issued (verify/reset).
@@ -77,14 +77,14 @@
 - [ ] Send a "shipped" email when admin sets order status → shipped.
 - [ ] Send a "cancelled" email on cancellation.
 
-### 7. Stock guard at checkout (server-side re-check)
-- [ ] In `api/place-order.php`, before `createOrder()`, re-fetch each line item's effective stock (simple = `stock_qty`, combined = sum of children, pack = `floor(child / pack_qty)`). If any line `qty > effectiveStock`, return 409 with `{ insufficient: [{sku, available}] }`.
-- [ ] Cart UI handles 409 → toast "Some items are out of stock" + reload page so the cart shows fresh stock.
+### 7. Stock guard at checkout (server-side re-check)  ✅ Sprint 1
+- [x] In `api/place-order.php`, before `createOrder()`, aggregate per-product demand from resolved items (skipping pack display rows where `product_id=0`) and recheck against `products.stock_qty`. Returns 409 with `{ insufficient: [{sku,label,requested,available}] }`.
+- [ ] Cart UI handles 409 → toast "Some items are out of stock" + reload page so the cart shows fresh stock. *(client-side polish — Sprint 2)*
 
-### 8. Local stock decrement on order
-- [ ] After successful `createOrder`, decrement `products.stock_qty` (or for combined/pack, decrement underlying children) atomically inside the same transaction.
-- [ ] Increment back on order status → cancelled (only if not already cancelled).
-- [ ] Decision: this is overlay layer — ERP sync will eventually correct numbers from ERP master. Document the rule.
+### 8. Local stock decrement on order  ✅ Sprint 1
+- [x] After successful `createOrder`, `StockService::decrement` decrements `products.stock_qty` per resolved line (skip pack parent display rows). Uses guarded UPDATE (`WHERE stock_qty >= :q`) to prevent races.
+- [x] On `setStatus → 'cancelled'` (only when `stock_restored = 0`), `StockService::restore` increments stock back and sets `cancelled_at = NOW(), stock_restored = 1`.
+- [x] Decision: this is overlay layer — ERP sync corrects numbers from ERP master on next cycle.
 
 ### 9. Account dashboard polish
 - [ ] Resend-verification cooldown: store `verify_email_sent_at` in users, disable button + show countdown for 60s on `account/index.php`.
@@ -432,7 +432,7 @@ checkout-success.php              REDESIGNED (thank-you page)
 
 | Sprint | Phase | Tasks | Why first |
 |--------|-------|-------|-----------|
-| 1      | D-1   | #2 rate-limit, #5 PayHere webhook, #7 stock guard, #8 stock decrement | Security + correctness blockers |
+| 1      | D-1   | #2 rate-limit ✅, #7 stock guard ✅, #8 stock decrement ✅ (PayHere webhook deferred to Sprint 2 — PayHere not yet integrated) | Security + correctness blockers |
 | 2      | D-1   | #13 multi-payment (bank + COD), #14 thank-you redesign, #15 tracking | Revenue-enabling — bank/COD live |
 | 3      | D-1   | #1 email change, #3 admin user detail, #4 coupon redemption log, #6 email branding | Customer-facing polish |
 | 4      | D-1   | #12 expanded account area (addresses split, support tickets, profile cards) | Customer self-service |

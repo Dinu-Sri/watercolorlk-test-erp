@@ -12,7 +12,14 @@ try {
     if (!GoogleOAuth::isConfigured()) {
         throw new RuntimeException('Google Sign-In is not configured on this site yet.');
     }
+    $rl = appRateLimiter();
+    $gate = $rl->check('google', null);
+    if (!$gate['ok']) {
+        $mins = max(1, (int)ceil($gate['retry_after'] / 60));
+        throw new RuntimeException('Too many sign-in attempts. Please try again in ' . $mins . ' minute' . ($mins === 1 ? '' : 's') . '.');
+    }
     if (!empty($_GET['error'])) {
+        $rl->record('google', null, false);
         throw new RuntimeException('Google sign-in cancelled.');
     }
     $code  = (string)($_GET['code'] ?? '');
@@ -62,6 +69,7 @@ try {
         throw new RuntimeException('This account has been disabled.');
     }
     $auth->login((int)$u['id']);
+    $rl->record('google', null, true);
 
     $next = (string)($_SESSION['google_oauth_next'] ?? '/account/index.php');
     unset($_SESSION['google_oauth_next']);
@@ -70,6 +78,9 @@ try {
     exit;
 } catch (Throwable $e) {
     $err = $e->getMessage();
+    if (isset($rl)) {
+        try { $rl->record('google', null, false); } catch (Throwable $ignored) {}
+    }
 }
 
 $pageTitle = 'Google Sign-In · Watercolor.LK';

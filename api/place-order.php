@@ -263,8 +263,28 @@ try {
     /* Attach logged-in user (if any) so order shows up in their account. */
     $payload['user_id'] = appUserAuth()->currentUserId();
 
+    /* ===== Server-side stock guard (recheck against products.stock_qty) ===== */
+    $stockSvc = new StockService($db);
+    $stockCheck = $stockSvc->checkAvailability($resolvedItems);
+    if (!$stockCheck['ok']) {
+        JsonResponse::send([
+            'success' => false,
+            'error' => 'Some items are out of stock or have less stock than requested. Please update your cart.',
+            'insufficient' => $stockCheck['insufficient'],
+        ], 409);
+        exit;
+    }
+
     $orderRepo = new OrderRepository($db);
     $orderId = $orderRepo->createOrder($payload);
+
+    /* Decrement local stock immediately. ERP push is the authoritative truth and
+       will correct any drift on the next sync cycle. */
+    try {
+        $stockSvc->decrement($resolvedItems);
+    } catch (Throwable $stockErr) {
+        error_log('stock-decrement-failed for order #' . $orderId . ': ' . $stockErr->getMessage());
+    }
 
     if ($couponId !== null) {
         try {

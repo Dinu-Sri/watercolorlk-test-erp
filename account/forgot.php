@@ -19,23 +19,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
             $err = 'Please enter a valid email address.';
         } else {
-            $u = $repo->findByEmail($email);
-            if ($u && empty($u['password_hash']) && !empty($u['google_sub'])) {
-                $err = 'This account uses Google Sign-In. Click "Continue with Google" on the login page.';
-            } elseif ($u) {
-                try {
-                    $token = $repo->issueToken((int)$u['id'], 'reset_password', 60);
-                    $url = SITE_URL . '/account/reset.php?token=' . urlencode($token);
-                    $body = '<p>We received a request to reset your Watercolor.LK password.</p>'
-                          . '<p>Click the button below to choose a new one. The link expires in 60 minutes.</p>';
-                    $html = appMailer()->renderLayout('Reset your password', $body, $url, 'Choose a new password');
-                    appMailer()->send($email, 'Reset your Watercolor.LK password', $html);
-                } catch (Throwable $e) {
-                    /* keep generic UX message */
+            $rl = appRateLimiter();
+            $gate = $rl->check('forgot', $email);
+            if (!$gate['ok']) {
+                $mins = max(1, (int)ceil($gate['retry_after'] / 60));
+                $err = 'Too many requests. Please try again in ' . $mins . ' minute' . ($mins === 1 ? '' : 's') . '.';
+            } else {
+                $u = $repo->findByEmail($email);
+                if ($u && empty($u['password_hash']) && !empty($u['google_sub'])) {
+                    $err = 'This account uses Google Sign-In. Click "Continue with Google" on the login page.';
+                } elseif ($u) {
+                    try {
+                        $token = $repo->issueToken((int)$u['id'], 'reset_password', 60);
+                        $url = SITE_URL . '/account/reset.php?token=' . urlencode($token);
+                        $body = '<p>We received a request to reset your Watercolor.LK password.</p>'
+                              . '<p>Click the button below to choose a new one. The link expires in 60 minutes.</p>';
+                        $html = appMailer()->renderLayout('Reset your password', $body, $url, 'Choose a new password');
+                        appMailer()->send($email, 'Reset your Watercolor.LK password', $html);
+                    } catch (Throwable $e) {
+                        /* keep generic UX message */
+                    }
                 }
+                $rl->record('forgot', $email, true);
+                /* Always show generic confirmation - prevents email enumeration. */
+                $ok = 'If that email exists in our system, a reset link is on its way. Check your inbox.';
             }
-            /* Always show generic confirmation - prevents email enumeration. */
-            $ok = 'If that email exists in our system, a reset link is on its way. Check your inbox.';
         }
     }
 }
