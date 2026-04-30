@@ -337,11 +337,21 @@ include __DIR__ . '/partials/site-header.php';
                 listEl.innerHTML = items.map(function(it) {
                     var img = it.image_url || 'assets/images/brand/logo-watercolorlk.png';
                     var lineTotal = WLKCart.formatLKR(Number(it.price) * Number(it.qty));
-                    return '<article class="cart-item" data-id="' + Number(it.erp_product_id) + '">' +
+                    var label = '';
+                    if (it.kind === 'combined' && it.variant_label) {
+                        label = '<span class="meta">Variant: ' + escapeHtml(it.variant_label) + '</span>';
+                    } else if (it.kind === 'pack' && Array.isArray(it.pack_children) && it.pack_children.length) {
+                        var bullets = it.pack_children.map(function(c) {
+                            return escapeHtml((c.quantity ? (Number(c.quantity) + '× ') : '') + (c.name || ''));
+                        }).join(' • ');
+                        label = '<span class="meta">Pack: ' + bullets + '</span>';
+                    }
+                    return '<article class="cart-item" data-id="' + escapeHtml(String(it.line_id || it.erp_product_id)) + '">' +
                         '<img class="thumb" src="' + escapeHtml(img) + '" alt="" onerror="this.onerror=null;this.src=\'assets/images/brand/logo-watercolorlk.png\';">' +
                         '<div class="body">' +
                             '<a href="' + escapeHtml(productUrl(it)) + '">' + escapeHtml(it.name) + '</a>' +
                             (it.sku ? '<span class="meta">SKU: ' + escapeHtml(it.sku) + '</span>' : '') +
+                            label +
                             '<div class="row">' +
                                 '<span class="unit">' + WLKCart.formatLKR(it.price) + '</span>' +
                                 '<span class="stepper">' +
@@ -387,7 +397,7 @@ include __DIR__ . '/partials/site-header.php';
         listEl.addEventListener('click', function(e) {
             var item = e.target.closest('.cart-item');
             if (!item) return;
-            var id = Number(item.dataset.id);
+            var id = item.dataset.id;
             var act = e.target.closest('[data-act]') && e.target.closest('[data-act]').dataset.act;
             if (act === 'inc') WLKCart.updateQty(id, currentQty(item) + 1);
             else if (act === 'dec') WLKCart.updateQty(id, currentQty(item) - 1);
@@ -397,7 +407,7 @@ include __DIR__ . '/partials/site-header.php';
             if (!e.target.matches('[data-act="qty"]')) return;
             var item = e.target.closest('.cart-item');
             if (!item) return;
-            var id = Number(item.dataset.id);
+            var id = item.dataset.id;
             var n = Math.max(0, Math.floor(Number(e.target.value) || 0));
             WLKCart.updateQty(id, n);
         });

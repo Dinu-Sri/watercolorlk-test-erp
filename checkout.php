@@ -319,8 +319,17 @@ include __DIR__ . '/partials/site-header.php';
             <div class="cx-items" id="cxItems"></div>
             <hr>
             <div class="ln"><span>Subtotal</span><strong id="cxSub">LKR 0.00</strong></div>
+            <div class="ln cx-discount-line" id="cxDiscountLine" hidden><span>Discount <em id="cxDiscountCode" style="font-style:normal;font-weight:800;color:var(--brand-navy);"></em></span><strong id="cxDiscount" style="color:#17633e">− LKR 0.00</strong></div>
             <div class="ln"><span>Shipping</span><strong id="cxShip">LKR 0.00</strong></div>
             <div class="total"><span class="lbl">Total</span><span class="amt" id="cxTotal">LKR 0.00</span></div>
+            <div class="cx-coupon" style="margin-top:14px;">
+                <label for="cxCoupon" style="display:block;font:700 .76rem/1 'Montserrat',sans-serif;color:var(--brand-navy-deep);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">Have a promo code?</label>
+                <div style="display:flex;gap:6px;">
+                    <input id="cxCoupon" type="text" autocomplete="off" placeholder="Enter code" style="flex:1;text-transform:uppercase;font:700 .9rem/1 'Source Sans 3',sans-serif;letter-spacing:.05em;padding:9px 11px;border:1px solid var(--line);border-radius:9px;">
+                    <button id="cxCouponApply" type="button" style="padding:9px 14px;border-radius:9px;border:0;background:var(--brand-navy);color:#fff;font:700 .85rem/1 'Montserrat',sans-serif;cursor:pointer;">Apply</button>
+                </div>
+                <div id="cxCouponMsg" style="margin-top:6px;font:600 .8rem/1.3 'Source Sans 3',sans-serif;"></div>
+            </div>
             <button type="submit" class="cx-submit" id="cxSubmit" form="cxForm" disabled style="margin-top:14px;">
                 <span class="spinner" aria-hidden="true"></span>
                 <span class="lbl">Place order &mdash; <span id="cxBtnAmt">LKR 0.00</span></span>
@@ -360,7 +369,15 @@ include __DIR__ . '/partials/site-header.php';
         var toggleAmt = document.getElementById('cxToggleAmt');
         var submitBtn = document.getElementById('cxSubmit');
         var errBox = document.getElementById('cxError');
+        var couponInput = document.getElementById('cxCoupon');
+        var couponBtn = document.getElementById('cxCouponApply');
+        var couponMsg = document.getElementById('cxCouponMsg');
+        var discountLine = document.getElementById('cxDiscountLine');
+        var discountAmtEl = document.getElementById('cxDiscount');
+        var discountCodeEl = document.getElementById('cxDiscountCode');
         var DRAFT_KEY = 'wlk_checkout_draft';
+        var COUPON_KEY = 'wlk_checkout_coupon';
+        var appliedCoupon = null; // { code, coupon_id, discount, type }
 
         function escapeHtml(s) {
             return String(s == null ? '' : s).replace(/[&<>"']/g, function(c) {
@@ -392,9 +409,31 @@ include __DIR__ . '/partials/site-header.php';
             var ship = WLKCart.shipping(sub);
             subEl.textContent = WLKCart.formatLKR(sub);
             shipEl.innerHTML = ship === 0 ? '<span class="ship-free">FREE</span>' : WLKCart.formatLKR(ship);
-            totalEl.textContent = WLKCart.formatLKR(sub + ship);
-            btnAmt.textContent = WLKCart.formatLKR(sub + ship);
-            toggleAmt.textContent = WLKCart.formatLKR(sub + ship);
+
+            var discount = 0;
+            var freeShipFromCoupon = false;
+            if (appliedCoupon) {
+                discount = Number(appliedCoupon.discount || 0);
+                if (appliedCoupon.type === 'free_ship') {
+                    freeShipFromCoupon = true;
+                    ship = 0;
+                    shipEl.innerHTML = '<span class="ship-free">FREE (coupon)</span>';
+                }
+            }
+            if (discount > 0) {
+                discountLine.removeAttribute('hidden');
+                discountAmtEl.textContent = '− ' + WLKCart.formatLKR(discount);
+                discountCodeEl.textContent = '(' + appliedCoupon.code + ')';
+            } else if (freeShipFromCoupon) {
+                discountLine.setAttribute('hidden', '');
+            } else {
+                discountLine.setAttribute('hidden', '');
+            }
+
+            var grandTotal = Math.max(0, sub - discount + ship);
+            totalEl.textContent = WLKCart.formatLKR(grandTotal);
+            btnAmt.textContent = WLKCart.formatLKR(grandTotal);
+            toggleAmt.textContent = WLKCart.formatLKR(grandTotal);
             validate();
         }
 
@@ -511,6 +550,13 @@ include __DIR__ . '/partials/site-header.php';
             var notesParts = ['Address: ' + fullAddress];
             if (altPhone) notesParts.push('Alt phone: ' + altPhone);
             if (notesText) notesParts.push('Notes: ' + notesText);
+            if (appliedCoupon) notesParts.push('Coupon: ' + appliedCoupon.code);
+
+            var sub = WLKCart.subtotal();
+            var ship = WLKCart.shipping(sub);
+            var discount = appliedCoupon ? Number(appliedCoupon.discount || 0) : 0;
+            if (appliedCoupon && appliedCoupon.type === 'free_ship') ship = 0;
+            var grandTotal = Math.max(0, sub - discount + ship);
 
             var payload = {
                 customer_name: document.getElementById('cxName').value.trim(),
@@ -518,10 +564,22 @@ include __DIR__ . '/partials/site-header.php';
                 customer_email: document.getElementById('cxEmail').value.trim(),
                 payment_method: paymentMethod,
                 notes: notesParts.join(' | '),
+                subtotal_amount: Number(sub.toFixed(2)),
+                shipping_amount: Number(ship.toFixed(2)),
+                discount_amount: Number(discount.toFixed(2)),
+                total_amount: Number(grandTotal.toFixed(2)),
+                coupon_code: appliedCoupon ? appliedCoupon.code : null,
                 items: WLKCart.items().map(function(it) {
                     return {
-                        erp_product_id: Number(it.erp_product_id),
+                        kind: it.kind || 'simple',
+                        erp_product_id: Number(it.erp_product_id || 0),
+                        storefront_product_id: it.storefront_product_id ? Number(it.storefront_product_id) : null,
+                        parent_storefront_id: it.parent_storefront_id ? Number(it.parent_storefront_id) : null,
+                        variant_child_id: it.variant_child_id ? Number(it.variant_child_id) : null,
+                        variant_label: it.variant_label || null,
+                        pack_children: it.pack_children || null,
                         sku: it.sku || '',
+                        name: it.name || '',
                         quantity: Number(it.qty),
                         unit_price: Number(it.price)
                     };
@@ -547,6 +605,7 @@ include __DIR__ . '/partials/site-header.php';
                 // TODO: PayHere SDK handoff goes here when keys are configured.
                 WLKCart.clear();
                 try { localStorage.removeItem(DRAFT_KEY); } catch (_) {}
+                try { localStorage.removeItem(COUPON_KEY); } catch (_) {}
                 window.location.href = 'checkout-success.php?order_id=' + encodeURIComponent(res.data.order_id) + '&method=' + encodeURIComponent(paymentMethod);
             }).catch(function(err) {
                 submitBtn.classList.remove('is-loading');
@@ -558,6 +617,80 @@ include __DIR__ . '/partials/site-header.php';
         loadDraft();
         renderSummary();
         WLKCart.on('change', renderSummary);
+
+        /* ====== Coupon apply / re-validate ====== */
+        function setCouponMsg(text, ok) {
+            couponMsg.textContent = text || '';
+            couponMsg.style.color = ok ? '#17633e' : '#b8232f';
+        }
+        function clearCoupon() {
+            appliedCoupon = null;
+            couponInput.value = '';
+            couponInput.disabled = false;
+            couponBtn.textContent = 'Apply';
+            try { localStorage.removeItem(COUPON_KEY); } catch (_) {}
+            renderSummary();
+        }
+        function applyCoupon(code) {
+            code = String(code || '').trim().toUpperCase();
+            if (!code) { setCouponMsg('Enter a coupon code.', false); return; }
+            couponBtn.disabled = true;
+            setCouponMsg('Checking…', true);
+            fetch('api/validate-coupon.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    code: code,
+                    customer_phone: document.getElementById('cxPhone').value.trim(),
+                    items: WLKCart.items().map(function(it) {
+                        return {
+                            erp_product_id: Number(it.erp_product_id || 0),
+                            storefront_product_id: it.storefront_product_id || null,
+                            parent_storefront_id: it.parent_storefront_id || null,
+                            qty: Number(it.qty),
+                            price: Number(it.price)
+                        };
+                    })
+                })
+            }).then(function(r) { return r.json(); }).then(function(j) {
+                couponBtn.disabled = false;
+                if (!j || !j.ok) {
+                    setCouponMsg((j && j.error) || 'Coupon could not be applied.', false);
+                    appliedCoupon = null;
+                    renderSummary();
+                    return;
+                }
+                appliedCoupon = { code: j.code, coupon_id: j.coupon_id, discount: j.discount, type: j.type };
+                couponInput.value = j.code;
+                couponInput.disabled = true;
+                couponBtn.textContent = 'Remove';
+                var msg = j.type === 'free_ship'
+                    ? 'Free shipping unlocked!'
+                    : 'Saved ' + WLKCart.formatLKR(j.discount) + '!';
+                setCouponMsg(msg, true);
+                try { localStorage.setItem(COUPON_KEY, JSON.stringify(appliedCoupon)); } catch (_) {}
+                renderSummary();
+            }).catch(function(err) {
+                couponBtn.disabled = false;
+                setCouponMsg('Network error: ' + (err && err.message || 'try again'), false);
+            });
+        }
+        couponBtn.addEventListener('click', function() {
+            if (appliedCoupon) { clearCoupon(); setCouponMsg(''); return; }
+            applyCoupon(couponInput.value);
+        });
+        couponInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') { e.preventDefault(); applyCoupon(couponInput.value); }
+        });
+        /* Re-validate on cart change to ensure discount stays correct */
+        WLKCart.on('change', function() {
+            if (appliedCoupon) applyCoupon(appliedCoupon.code);
+        });
+        /* Restore previous attempt */
+        try {
+            var saved = JSON.parse(localStorage.getItem(COUPON_KEY) || 'null');
+            if (saved && saved.code) applyCoupon(saved.code);
+        } catch (_) {}
     });
 })();
 </script>

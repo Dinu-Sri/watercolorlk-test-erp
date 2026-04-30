@@ -33,35 +33,248 @@ try {
     }
 
     $db = appDb();
-
-    /* Resolve missing local product_id from erp_product_id when client (e.g. cart) only sends erp_product_id. */
     $productRepo = new ProductRepository($db);
+    $storefrontRepo = new StorefrontRepository($db);
+
+    /**
+     * Explode each cart line into one or more order_items rows:
+     *   simple   -> 1 row, kind='simple'
+     *   combined -> 1 row, kind='variant', erp_product_id of the chosen variant
+     *   pack     -> 1 display-only parent row (kind='pack', erp_product_id=0; OrderSyncService skips these)
+     *               + N child rows (kind='pack_child') with proportional unit_price allocation.
+     */
     $resolvedItems = [];
-    foreach ($payload['items'] as $item) {
-        if (!isset($item['erp_product_id'])) {
+    $couponLines = [];
+    $subtotalCalc = 0.0;
+
+    $getStorefront = static function(int $id) use ($db): ?array {
+        if ($id <= 0) return null;
+        $st = $db->prepare('SELECT * FROM storefront_products WHERE id = :id LIMIT 1');
+        $st->execute([':id' => $id]);
+        $r = $st->fetch();
+        return $r ?: null;
+    };
+    $getStorefrontCats = static function(int $id) use ($db): array {
+        if ($id <= 0) return [];
+        $st = $db->prepare('SELECT category_id FROM storefront_product_categories WHERE storefront_product_id = :id');
+        $st->execute([':id' => $id]);
+        return array_map(static fn($r): int => (int)$r['category_id'], $st->fetchAll());
+    };
+    $getChild = static function(int $childId) use ($db): ?array {
+        if ($childId <= 0) return null;
+        $st = $db->prepare(
+            'SELECT spc.*, p.sku, p.name AS product_name, p.erp_product_id, p.price AS product_price
+             FROM storefront_product_children spc
+             INNER JOIN products p ON p.id = spc.child_product_id
+             WHERE spc.id = :id LIMIT 1'
+        );
+        $st->execute([':id' => $childId]);
+        $r = $st->fetch();
+        return $r ?: null;
+    };
+    $getPackChildren = static function(int $parentId) use ($db): array {
+        $st = $db->prepare(
+            'SELECT spc.*, p.sku, p.name AS product_name, p.erp_product_id, p.price AS product_price
+             FROM storefront_product_children spc
+             INNER JOIN products p ON p.id = spc.child_product_id
+             WHERE spc.parent_storefront_id = :p AND spc.context = "pack_item"
+             ORDER BY spc.sort_order, spc.id'
+        );
+        $st->execute([':p' => $parentId]);
+        return $st->fetchAll();
+    };
+
+    foreach ($payload['items'] as $rawItem) {
+        $kind = (string)($rawItem['kind'] ?? 'simple');
+        $cartQty = max(1, (int)($rawItem['quantity'] ?? 1));
+        $unitPrice = (float)($rawItem['unit_price'] ?? 0);
+        $lineAmount = $unitPrice * $cartQty;
+        $subtotalCalc += $lineAmount;
+
+        if ($kind === 'combined') {
+            $parentSpId = (int)($rawItem['parent_storefront_id'] ?? $rawItem['storefront_product_id'] ?? 0);
+            $variantChildId = (int)($rawItem['variant_child_id'] ?? 0);
+            $child = $getChild($variantChildId);
+            if (!$child) {
+                JsonResponse::send(['success' => false, 'error' => 'Variant not found for combined product line.'], 422);
+                exit;
+            }
+            $erpId = (int)$child['erp_product_id'];
+            $row = $productRepo->getByErpId($erpId);
+            if (!$row) {
+                JsonResponse::send(['success' => false, 'error' => 'Unknown product (variant): ' . $erpId], 422);
+                exit;
+            }
+            $sp = $getStorefront($parentSpId);
+            $resolvedItems[] = [
+                'kind' => 'variant',
+                'product_id' => (int)$row['id'],
+                'erp_product_id' => $erpId,
+                'sku' => (string)($child['sku'] ?? $row['sku'] ?? ''),
+                'quantity' => $cartQty,
+                'unit_price' => $unitPrice,
+                'storefront_product_id' => $parentSpId ?: null,
+                'parent_storefront_id' => $parentSpId ?: null,
+                'display_label' => trim((string)($sp['title'] ?? $row['name']) . ' — ' . (string)($child['variant_label'] ?? '')),
+            ];
+            $couponLines[] = [
+                'storefront_product_id' => $parentSpId,
+                'category_ids' => $getStorefrontCats($parentSpId),
+                'amount' => $lineAmount,
+            ];
+            continue;
+        }
+
+        if ($kind === 'pack') {
+            $parentSpId = (int)($rawItem['parent_storefront_id'] ?? $rawItem['storefront_product_id'] ?? 0);
+            $sp = $getStorefront($parentSpId);
+            if (!$sp || $sp['kind'] !== 'pack') {
+                JsonResponse::send(['success' => false, 'error' => 'Pack product not found.'], 422);
+                exit;
+            }
+            $packChildren = $getPackChildren($parentSpId);
+            if (!$packChildren) {
+                JsonResponse::send(['success' => false, 'error' => 'Pack has no contents configured.'], 422);
+                exit;
+            }
+            /* Display-only parent row. erp_product_id=0 + product_id=0 -> OrderSyncService skips it. */
+            $resolvedItems[] = [
+                'kind' => 'pack',
+                'product_id' => 0,
+                'erp_product_id' => 0,
+                'sku' => '',
+                'quantity' => $cartQty,
+                'unit_price' => $unitPrice,
+                'storefront_product_id' => $parentSpId,
+                'parent_storefront_id' => null,
+                'display_label' => (string)($sp['title'] ?? 'Pack'),
+            ];
+
+            $weights = [];
+            $totalWeight = 0.0;
+            foreach ($packChildren as $c) {
+                $w = max(0.01, (float)$c['quantity'] * (float)$c['product_price']);
+                $weights[] = $w;
+                $totalWeight += $w;
+            }
+            foreach ($packChildren as $i => $c) {
+                $childErp = (int)$c['erp_product_id'];
+                $row = $productRepo->getByErpId($childErp);
+                if (!$row) {
+                    JsonResponse::send(['success' => false, 'error' => 'Unknown product in pack: ' . $childErp], 422);
+                    exit;
+                }
+                $childCartQty = (float)$c['quantity'] * $cartQty;
+                $allocated = $totalWeight > 0 ? ($unitPrice * $cartQty) * ($weights[$i] / $totalWeight) : 0;
+                $childUnitPrice = $childCartQty > 0 ? round($allocated / $childCartQty, 2) : 0;
+                $resolvedItems[] = [
+                    'kind' => 'pack_child',
+                    'product_id' => (int)$row['id'],
+                    'erp_product_id' => $childErp,
+                    'sku' => (string)($c['sku'] ?? ''),
+                    'quantity' => $childCartQty,
+                    'unit_price' => $childUnitPrice,
+                    'storefront_product_id' => null,
+                    'parent_storefront_id' => $parentSpId,
+                    'display_label' => (string)($c['product_name'] ?? ''),
+                ];
+            }
+            $couponLines[] = [
+                'storefront_product_id' => $parentSpId,
+                'category_ids' => $getStorefrontCats($parentSpId),
+                'amount' => $lineAmount,
+            ];
+            continue;
+        }
+
+        /* simple */
+        $erpId = (int)($rawItem['erp_product_id'] ?? 0);
+        if ($erpId <= 0) {
             JsonResponse::send(['success' => false, 'error' => 'Each item requires erp_product_id'], 422);
             exit;
         }
-        if (empty($item['product_id'])) {
-            $row = $productRepo->getByErpId((int)$item['erp_product_id']);
-            if (!$row) {
-                JsonResponse::send(['success' => false, 'error' => 'Unknown product: ' . $item['erp_product_id']], 422);
-                exit;
-            }
-            $item['product_id'] = (int)$row['id'];
-            if (empty($item['sku']) && !empty($row['sku'])) {
-                $item['sku'] = (string)$row['sku'];
-            }
-            if (!isset($item['unit_price']) || $item['unit_price'] === '') {
-                $item['unit_price'] = (float)$row['price'];
-            }
+        $row = $productRepo->getByErpId($erpId);
+        if (!$row) {
+            JsonResponse::send(['success' => false, 'error' => 'Unknown product: ' . $erpId], 422);
+            exit;
         }
-        $resolvedItems[] = $item;
+        $spId = (int)($rawItem['storefront_product_id'] ?? 0);
+        if ($spId <= 0) {
+            $simpleSp = $storefrontRepo->getSimpleByErpId($erpId);
+            if ($simpleSp) $spId = (int)$simpleSp['id'];
+        }
+        $resolvedItems[] = [
+            'kind' => 'simple',
+            'product_id' => (int)$row['id'],
+            'erp_product_id' => $erpId,
+            'sku' => (string)($rawItem['sku'] ?? $row['sku'] ?? ''),
+            'quantity' => $cartQty,
+            'unit_price' => $unitPrice !== 0.0 ? $unitPrice : (float)$row['price'],
+            'storefront_product_id' => $spId ?: null,
+            'parent_storefront_id' => null,
+            'display_label' => (string)($rawItem['name'] ?? $row['name'] ?? ''),
+        ];
+        $couponLines[] = [
+            'storefront_product_id' => $spId,
+            'category_ids' => $getStorefrontCats($spId),
+            'amount' => $lineAmount,
+        ];
     }
+
+    /* ===== Coupon validation ===== */
+    $couponId = null;
+    $couponCode = null;
+    $couponDiscount = 0.0;
+    $couponType = null;
+    $couponInput = trim((string)($payload['coupon_code'] ?? ''));
+    if ($couponInput !== '') {
+        $couponService = new CouponService(new CouponRepository($db));
+        $cv = $couponService->validate($couponInput, [
+            'subtotal' => $subtotalCalc,
+            'lines' => $couponLines,
+            'customer_phone' => (string)$payload['customer_phone'],
+        ]);
+        if (!$cv['ok']) {
+            JsonResponse::send(['success' => false, 'error' => 'Coupon: ' . $cv['error']], 422);
+            exit;
+        }
+        $couponId = (int)$cv['coupon']['id'];
+        $couponCode = strtoupper($couponInput);
+        $couponDiscount = (float)$cv['discount'];
+        $couponType = (string)$cv['type'];
+    }
+
+    /* Authoritative totals (recomputed server-side; client values ignored). */
+    $subtotal = round($subtotalCalc, 2);
+    $shipping = $subtotal >= 5000 ? 0.0 : ($subtotal > 0 ? 350.0 : 0.0);
+    if ($couponType === 'free_ship') {
+        $shipping = 0.0;
+    }
+    $total = round(max(0.0, $subtotal - $couponDiscount + $shipping), 2);
+
     $payload['items'] = $resolvedItems;
+    $payload['subtotal_amount'] = $subtotal;
+    $payload['shipping_amount'] = $shipping;
+    $payload['discount_amount'] = round($couponDiscount, 2);
+    $payload['total_amount']    = $total;
+    $payload['coupon_id']       = $couponId;
+    $payload['coupon_code']     = $couponCode;
 
     $orderRepo = new OrderRepository($db);
     $orderId = $orderRepo->createOrder($payload);
+
+    if ($couponId !== null) {
+        try {
+            (new CouponRepository($db))->recordRedemption(
+                $couponId,
+                $orderId,
+                $couponDiscount,
+                (string)$payload['customer_phone']
+            );
+        } catch (Throwable $rerr) {
+            error_log('coupon-redemption-failed: ' . $rerr->getMessage());
+        }
+    }
 
     $syncService = new OrderSyncService(appErpClient(), $orderRepo);
     $syncStatus = 'queued';
@@ -78,6 +291,12 @@ try {
         'success' => true,
         'order_id' => $orderId,
         'erp_sync' => $syncStatus,
+        'totals' => [
+            'subtotal' => $subtotal,
+            'shipping' => $shipping,
+            'discount' => round($couponDiscount, 2),
+            'total' => $total,
+        ],
     ], 201);
 } catch (Throwable $e) {
     JsonResponse::send(['success' => false, 'error' => $e->getMessage()], 500);

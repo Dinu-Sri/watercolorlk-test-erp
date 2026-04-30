@@ -272,6 +272,24 @@ LEFT JOIN `product_overrides` po ON po.product_id = p.id
 WHERE p.is_active = 1;
 
 -- =============================================================================
+-- ORDERS / ORDER_ITEMS extensions for coupons + storefront line types.
+-- Idempotent via ADD COLUMN IF NOT EXISTS (MariaDB 10.0+ / MySQL 8.0+).
+-- =============================================================================
+ALTER TABLE `orders`
+    ADD COLUMN IF NOT EXISTS `subtotal_amount` DECIMAL(12,2) NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS `shipping_amount` DECIMAL(12,2) NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS `discount_amount` DECIMAL(12,2) NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS `total_amount`    DECIMAL(12,2) NOT NULL DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS `coupon_id` INT UNSIGNED DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `coupon_code` VARCHAR(64) DEFAULT NULL;
+
+ALTER TABLE `order_items`
+    ADD COLUMN IF NOT EXISTS `kind` ENUM('simple','variant','pack','pack_child') NOT NULL DEFAULT 'simple',
+    ADD COLUMN IF NOT EXISTS `storefront_product_id` INT UNSIGNED DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `parent_storefront_id`  INT UNSIGNED DEFAULT NULL,
+    ADD COLUMN IF NOT EXISTS `display_label` VARCHAR(255) DEFAULT NULL;
+
+-- =============================================================================
 -- Phase 2 site_settings seed (empty defaults; admin Settings page will edit)
 -- =============================================================================
 INSERT IGNORE INTO `site_settings` (`key`, `value`) VALUES

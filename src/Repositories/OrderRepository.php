@@ -13,8 +13,16 @@ final class OrderRepository
         $this->db->beginTransaction();
         try {
             $stmt = $this->db->prepare(
-                'INSERT INTO orders (customer_name, customer_phone, customer_email, payment_method, notes, status, erp_sync_status, created_at, updated_at)
-                 VALUES (:name, :phone, :email, :payment, :notes, :status, :erp_sync_status, NOW(), NOW())'
+                'INSERT INTO orders (customer_name, customer_phone, customer_email, payment_method, notes,
+                                     status, erp_sync_status,
+                                     subtotal_amount, shipping_amount, discount_amount, total_amount,
+                                     coupon_id, coupon_code,
+                                     created_at, updated_at)
+                 VALUES (:name, :phone, :email, :payment, :notes,
+                         :status, :erp_sync_status,
+                         :subtotal, :shipping, :discount, :total,
+                         :coupon_id, :coupon_code,
+                         NOW(), NOW())'
             );
             $stmt->execute([
                 'name' => $payload['customer_name'],
@@ -24,13 +32,23 @@ final class OrderRepository
                 'notes' => $payload['notes'] ?? null,
                 'status' => 'pending',
                 'erp_sync_status' => 'pending',
+                'subtotal' => (float)($payload['subtotal_amount'] ?? 0),
+                'shipping' => (float)($payload['shipping_amount'] ?? 0),
+                'discount' => (float)($payload['discount_amount'] ?? 0),
+                'total'    => (float)($payload['total_amount'] ?? 0),
+                'coupon_id'   => isset($payload['coupon_id']) && $payload['coupon_id'] !== '' ? (int)$payload['coupon_id'] : null,
+                'coupon_code' => $payload['coupon_code'] ?? null,
             ]);
 
             $orderId = (int)$this->db->lastInsertId();
 
             $itemStmt = $this->db->prepare(
-                'INSERT INTO order_items (order_id, product_id, erp_product_id, sku, quantity, unit_price, created_at)
-                 VALUES (:order_id, :product_id, :erp_product_id, :sku, :quantity, :unit_price, NOW())'
+                'INSERT INTO order_items (order_id, product_id, erp_product_id, sku, quantity, unit_price,
+                                          kind, storefront_product_id, parent_storefront_id, display_label,
+                                          created_at)
+                 VALUES (:order_id, :product_id, :erp_product_id, :sku, :quantity, :unit_price,
+                         :kind, :spid, :parent_spid, :label,
+                         NOW())'
             );
 
             foreach ($payload['items'] as $item) {
@@ -41,6 +59,10 @@ final class OrderRepository
                     'sku' => $item['sku'] ?? '',
                     'quantity' => (float)$item['quantity'],
                     'unit_price' => (float)$item['unit_price'],
+                    'kind' => $item['kind'] ?? 'simple',
+                    'spid' => isset($item['storefront_product_id']) && $item['storefront_product_id'] ? (int)$item['storefront_product_id'] : null,
+                    'parent_spid' => isset($item['parent_storefront_id']) && $item['parent_storefront_id'] ? (int)$item['parent_storefront_id'] : null,
+                    'label' => $item['display_label'] ?? null,
                 ]);
             }
 

@@ -175,7 +175,12 @@ if ($slug === '') {
 }
 
 $repo = new ProductRepository(appDb());
+$storefrontRepo = new StorefrontRepository(appDb());
 $product = null;
+$storefrontProduct = null; // populated for combined/pack
+$variantChildren = [];     // for combined kind
+$packChildren = [];        // for pack kind
+
 if ($slug !== '') {
     $product = $repo->getBySlug($slug);
 }
@@ -183,7 +188,73 @@ if (!$product && $erpId > 0) {
     $product = $repo->getByErpId($erpId);
 }
 
-if ($product && $slug === '' && $erpId > 0 && !headers_sent()) {
+/* If slug points at a combined/pack storefront row, synthesize a $product shape so the
+   existing PDP layout renders, then load child rows for the variant picker / pack list. */
+if (!$product && $slug !== '') {
+    $sp = $storefrontRepo->getBySlug($slug, true);
+    if ($sp && in_array((string)$sp['kind'], ['combined', 'pack'], true)) {
+        $storefrontProduct = $sp;
+        $children = $storefrontRepo->getChildren((int)$sp['id'], $sp['kind'] === 'combined' ? 'variant' : 'pack_item');
+
+        /* Hydrate each child with product data (stock, sku, real name, erp id). */
+        $hydrated = [];
+        foreach ($children as $c) {
+            $row = $repo->getByErpId((int)$c['erp_product_id'] ?? 0);
+            if (!$row && !empty($c['child_product_id'])) {
+                $stmt = appDb()->prepare('SELECT id, erp_product_id, sku, name, price, stock_qty FROM products WHERE id = :id LIMIT 1');
+                $stmt->execute([':id' => (int)$c['child_product_id']]);
+                $row = $stmt->fetch() ?: null;
+            }
+            $c['product'] = $row;
+            $hydrated[] = $c;
+        }
+
+        if ($sp['kind'] === 'combined') {
+            $variantChildren = $hydrated;
+            /* Default to first variant for hero display. */
+            $first = $variantChildren[0]['product'] ?? null;
+            $defaultErp = $first ? (int)$first['erp_product_id'] : 0;
+            $defaultPrice = $first ? (float)$first['price'] : (float)$sp['base_price'];
+            $defaultStock = 0;
+            foreach ($variantChildren as $vc) {
+                if ($vc['product']) $defaultStock += (float)$vc['product']['stock_qty'];
+            }
+            $product = [
+                'id' => 0,
+                'erp_product_id' => $defaultErp,
+                'sku' => $first['sku'] ?? '',
+                'name' => (string)$sp['title'],
+                'description' => (string)($sp['description'] ?? ''),
+                'image_url' => (string)($sp['hero_image_url'] ?? ''),
+                'price' => $defaultPrice,
+                'stock_qty' => $defaultStock,
+                'category_name' => '',
+                'brand_name' => '',
+                'badge' => (string)($sp['badge'] ?? ''),
+                'slug' => (string)$sp['slug'],
+            ];
+        } else { // pack
+            $packChildren = $hydrated;
+            $totalStock = $storefrontRepo->effectiveStock((int)$sp['id']);
+            $product = [
+                'id' => 0,
+                'erp_product_id' => 0,
+                'sku' => '',
+                'name' => (string)$sp['title'],
+                'description' => (string)($sp['description'] ?? ''),
+                'image_url' => (string)($sp['hero_image_url'] ?? ''),
+                'price' => (float)$sp['base_price'],
+                'stock_qty' => $totalStock,
+                'category_name' => '',
+                'brand_name' => '',
+                'badge' => (string)($sp['badge'] ?? ''),
+                'slug' => (string)$sp['slug'],
+            ];
+        }
+    }
+}
+
+if ($product && $slug === '' && $erpId > 0 && !headers_sent() && $storefrontProduct === null) {
     header('Location: ' . productUrl((string)($product['slug'] ?? ''), (string)($product['name'] ?? ''), (int)$product['erp_product_id']), true, 301);
     exit;
 }
@@ -1540,6 +1611,55 @@ include __DIR__ . '/partials/site-header.php';
                     <?php endif; ?>
                 </div>
 
+                <?php if ($storefrontProduct && $storefrontProduct['kind'] === 'combined' && $variantChildren): ?>
+                <div class="variant-picker" style="margin:14px 0 6px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;">
+                    <h3 style="font:800 .9rem/1 'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.05em;color:var(--brand-navy-deep);margin:0 0 10px;">Choose your variant</h3>
+                    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+                    <?php foreach ($variantChildren as $i => $vc):
+                        $vp = $vc['product']; if (!$vp) continue;
+                        $vStock = (float)$vp['stock_qty'];
+                        $vOut = $vStock <= 0;
+                        $label = (string)($vc['variant_label'] ?? $vp['name']);
+                        $swatch = (string)($vc['swatch_color'] ?? '');
+                    ?>
+                        <label class="variant-chip" style="cursor:<?= $vOut ? 'not-allowed' : 'pointer' ?>;display:inline-flex;align-items:center;gap:8px;padding:8px 12px;border:2px solid var(--line);border-radius:10px;font:700 .85rem/1 'Source Sans 3',sans-serif;<?= $vOut ? 'opacity:.45;text-decoration:line-through;' : '' ?>">
+                            <input type="radio" name="variant" value="<?= (int)$vc['id'] ?>"
+                                   data-erp="<?= (int)$vp['erp_product_id'] ?>"
+                                   data-price="<?= (float)$vp['price'] ?>"
+                                   data-stock="<?= (float)$vp['stock_qty'] ?>"
+                                   data-label="<?= htmlspecialchars($label, ENT_QUOTES) ?>"
+                                   data-sku="<?= htmlspecialchars((string)($vp['sku'] ?? ''), ENT_QUOTES) ?>"
+                                   <?= $i === 0 && !$vOut ? 'checked' : '' ?>
+                                   <?= $vOut ? 'disabled' : '' ?>
+                                   style="margin:0;">
+                            <?php if ($swatch !== ''): ?>
+                                <span style="width:18px;height:18px;border-radius:50%;background:<?= htmlspecialchars($swatch, ENT_QUOTES) ?>;border:1px solid rgba(0,0,0,.15);"></span>
+                            <?php endif; ?>
+                            <span><?= htmlspecialchars($label) ?></span>
+                            <?php if ($vOut): ?><small style="color:#b8232f;font-weight:700;">Sold out</small><?php endif; ?>
+                        </label>
+                    <?php endforeach; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <?php if ($storefrontProduct && $storefrontProduct['kind'] === 'pack' && $packChildren): ?>
+                <div class="pack-contents" style="margin:14px 0 6px;padding:14px;border:1px solid var(--line);border-radius:14px;background:#fff;">
+                    <h3 style="font:800 .9rem/1 'Montserrat',sans-serif;text-transform:uppercase;letter-spacing:.05em;color:var(--brand-navy-deep);margin:0 0 10px;">What's inside this pack</h3>
+                    <ul style="list-style:none;padding:0;margin:0;display:grid;gap:6px;">
+                        <?php foreach ($packChildren as $pc):
+                            $pp = $pc['product']; if (!$pp) continue;
+                            $qtyEach = (float)($pc['quantity'] ?? 1);
+                        ?>
+                            <li style="display:flex;justify-content:space-between;gap:12px;font:600 .9rem/1.3 'Source Sans 3',sans-serif;color:var(--brand-navy-deep);">
+                                <span><strong style="color:var(--brand-orange);"><?= rtrim(rtrim(number_format($qtyEach, 2), '0'), '.') ?>×</strong> <?= htmlspecialchars((string)$pp['name']) ?></span>
+                                <small style="color:var(--ink-soft);">SKU: <?= htmlspecialchars((string)($pp['sku'] ?? '—')) ?></small>
+                            </li>
+                        <?php endforeach; ?>
+                    </ul>
+                </div>
+                <?php endif; ?>
+
                 <?php if ($savedPercent > 0): ?>
                 <div class="deal-countdown" id="dealCountdown">
                     <span class="lightning">⚡</span>
@@ -1781,7 +1901,24 @@ const product = {
     unit_price: <?= json_encode((float)$product['price']) ?>,
     name: <?= json_encode((string)$product['name']) ?>,
     slug: <?= json_encode((string)($product['slug'] ?? '')) ?>,
-    image_url: <?= json_encode((string)($product['image_url'] ?? '')) ?>
+    image_url: <?= json_encode((string)($product['image_url'] ?? '')) ?>,
+    kind: <?= json_encode($storefrontProduct ? (string)$storefrontProduct['kind'] : 'simple') ?>,
+    storefront_product_id: <?= $storefrontProduct ? (int)$storefrontProduct['id'] : 0 ?>,
+    pack_children: <?php
+        if ($storefrontProduct && $storefrontProduct['kind'] === 'pack') {
+            $exp = [];
+            foreach ($packChildren as $pc) {
+                $pp = $pc['product']; if (!$pp) continue;
+                $exp[] = [
+                    'erp_product_id' => (int)$pp['erp_product_id'],
+                    'sku' => (string)($pp['sku'] ?? ''),
+                    'name' => (string)$pp['name'],
+                    'quantity' => (float)($pc['quantity'] ?? 1),
+                ];
+            }
+            echo json_encode($exp);
+        } else { echo '[]'; }
+    ?>
 };
 
 document.querySelectorAll('.thumb').forEach((thumb) => {
@@ -1799,8 +1936,41 @@ function changeQty(delta) {
 }
 
 function getCartItem() {
+    if (product.kind === 'combined') {
+        const sel = document.querySelector('input[name="variant"]:checked');
+        if (!sel) return null;
+        return {
+            kind: 'combined',
+            erp_product_id: Number(sel.dataset.erp),
+            storefront_product_id: product.storefront_product_id,
+            parent_storefront_id: product.storefront_product_id,
+            variant_child_id: Number(sel.value),
+            variant_label: sel.dataset.label || '',
+            name: product.name,
+            slug: product.slug,
+            image_url: product.image_url,
+            price: Number(sel.dataset.price),
+            sku: sel.dataset.sku || ''
+        };
+    }
+    if (product.kind === 'pack') {
+        return {
+            kind: 'pack',
+            erp_product_id: 0,
+            storefront_product_id: product.storefront_product_id,
+            parent_storefront_id: product.storefront_product_id,
+            pack_children: product.pack_children || [],
+            name: product.name,
+            slug: product.slug,
+            image_url: product.image_url,
+            price: product.unit_price,
+            sku: ''
+        };
+    }
     return {
+        kind: 'simple',
         erp_product_id: product.erp_product_id,
+        storefront_product_id: product.storefront_product_id || null,
         name: product.name,
         slug: product.slug,
         image_url: product.image_url,
@@ -1811,17 +1981,26 @@ function getCartItem() {
 
 function addToCart() {
     if (!window.WLKCart) return;
+    const item = getCartItem();
+    if (!item) {
+        if (window.WLKCart.toast) window.WLKCart.toast('Please choose a variant first.');
+        return;
+    }
     const qty = Number(document.getElementById('qty').value || 1);
-    window.WLKCart.add(getCartItem(), qty);
+    window.WLKCart.add(item, qty);
     window.WLKCart.toast(qty + ' added to cart', { action: { href: 'cart.php', label: 'View cart' } });
 }
 
 function submitOrder(/* paymentMethod */) {
     if (!window.WLKCart) return;
+    const item = getCartItem();
+    if (!item) {
+        if (window.WLKCart.toast) window.WLKCart.toast('Please choose a variant first.');
+        return;
+    }
     const qty = Number(document.getElementById('qty').value || 1);
-    // Buy Now: jump straight to checkout with this single item (do not lose existing cart)
-    window.WLKCart.add(getCartItem(), qty);
-    window.location.href = 'checkout.php?buynow=' + encodeURIComponent(product.erp_product_id);
+    window.WLKCart.add(item, qty);
+    window.location.href = 'checkout.php?buynow=' + encodeURIComponent(product.erp_product_id || product.storefront_product_id);
 }
 
 function openWhatsAppOrder() {

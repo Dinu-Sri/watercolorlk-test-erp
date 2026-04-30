@@ -49,14 +49,20 @@ final class OrderSyncService
             'payment_method' => $order['payment_method'],
             'additional_notes' => $order['notes'],
             'source' => 'website',
-            'items' => array_map(
+            'items' => array_values(array_map(
                 static fn(array $item): array => [
                     'product_id' => (int)$item['erp_product_id'],
                     'quantity' => (float)$item['quantity'],
                     'unit_price' => (float)$item['unit_price'],
                 ],
-                $order['items']
-            ),
+                array_filter(
+                    $order['items'],
+                    /* Skip pack-parent rows: they are display-only with no real ERP SKU.
+                       The pack contents are persisted as separate kind='pack_child' lines. */
+                    static fn(array $item): bool => (string)($item['kind'] ?? 'simple') !== 'pack'
+                        && !empty($item['erp_product_id'])
+                )
+            )),
         ];
 
         $erpResponse = $this->erpClient->createOrder($payload);
