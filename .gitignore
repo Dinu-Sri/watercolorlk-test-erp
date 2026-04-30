@@ -1,3 +1,4 @@
 config/local.php
 .erp_token_cache.json
 test/legacy/.erp_token_cache.json
+assets/images.zip
