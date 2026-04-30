@@ -16,15 +16,32 @@ $filters = [
     'per_page' => $perPage,
 ];
 
-$res = $repo->adminList($filters);
-$rows = $res['rows'];
-$total = (int)$res['total'];
+$migrationMissing = false;
+$rows = [];
+$total = 0;
+try {
+    $res = $repo->adminList($filters);
+    $rows = $res['rows'];
+    $total = (int)$res['total'];
+} catch (Throwable $e) {
+    if (stripos($e->getMessage(), "doesn't exist") !== false || stripos($e->getMessage(), 'no such table') !== false) {
+        $migrationMissing = true;
+    } else {
+        throw $e;
+    }
+}
 $pagination = new Pagination($page, $perPage, $total);
 
 $pageTitle = 'Users';
 $activeNav = 'users';
 require __DIR__ . '/_layout_top.php';
 ?>
+<?php if ($migrationMissing): ?>
+<div class="card" style="background:#fff4d6;border:1px solid #f0d684;">
+    <strong style="color:#8a6a00;">Customer accounts migration not yet applied.</strong>
+    <p style="margin:6px 0 0;">Run <code>db/migrations/2026_06_users.sql</code> on the database (phpMyAdmin → SQL tab) to enable the customer accounts module.</p>
+</div>
+<?php endif; ?>
 <style>
 .pill { display:inline-block; padding:2px 9px; border-radius:999px; font:700 .72rem/1.6 'Source Sans 3',sans-serif; text-transform:uppercase; letter-spacing:.04em; }
 .pill-active { background:#d6f1de; color:#17633e; }

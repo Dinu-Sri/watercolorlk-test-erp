@@ -26,8 +26,7 @@ require_once __DIR__ . '/../bootstrap.php';
     <link rel="icon" href="../assets/images/brand/favicon.png">
     <?php require __DIR__ . '/../partials/chrome-styles.php'; ?>
     <style>
-        body { background:#f4f6f9; }
-        .acc-wrap { max-width: 980px; margin: 30px auto; padding: 0 18px; }
+        .acc-wrap { max-width: 980px; margin: 30px auto 60px; padding: 0 18px; }
         .acc-card { background:#fff; border:1px solid #e6eaf0; border-radius:18px; padding:30px; box-shadow:0 6px 24px rgba(15,36,64,.04); }
         .acc-card h1 { margin:0 0 6px; font:800 1.7rem/1.1 'Montserrat',sans-serif; color:#0f2440; letter-spacing:-.01em; }
         .acc-card .lead { color:#5a6677; margin:0 0 22px; font:400 .98rem/1.5 'Source Sans 3',sans-serif; }
@@ -71,20 +70,7 @@ $headerSearchValue = '';
 /* Site header expects relative paths that work at site root.
    Account pages live at /account/, so we need to fix asset paths after include. */
 ?>
-<div class="account-chrome" data-base="../">
+<div class="account-chrome">
 <?php require __DIR__ . '/../partials/site-header.php'; ?>
 </div>
-<script>
-/* Rewrite header asset paths so they resolve from /account/ */
-document.querySelectorAll('.account-chrome a[href]').forEach(function(a) {
-    var h = a.getAttribute('href');
-    if (!h || /^(https?:|#|mailto:|tel:|\/)/.test(h)) return;
-    a.setAttribute('href', '../' + h);
-});
-document.querySelectorAll('.account-chrome img[src]').forEach(function(img) {
-    var s = img.getAttribute('src');
-    if (!s || /^(https?:|data:|\/)/.test(s)) return;
-    img.setAttribute('src', '../' + s);
-});
-</script>
-<main class="acc-wrap">
+<main class="acc-wrap site-page">

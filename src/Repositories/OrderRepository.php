@@ -4,31 +4,47 @@ declare(strict_types=1);
 
 final class OrderRepository
 {
+    private ?bool $hasUserIdColumn = null;
+
     public function __construct(private PDO $db)
     {
+    }
+
+    private function ordersHasUserIdColumn(): bool
+    {
+        if ($this->hasUserIdColumn !== null) return $this->hasUserIdColumn;
+        try {
+            $st = $this->db->query("SHOW COLUMNS FROM orders LIKE 'user_id'");
+            $this->hasUserIdColumn = $st && $st->fetch() !== false;
+        } catch (Throwable $e) {
+            $this->hasUserIdColumn = false;
+        }
+        return $this->hasUserIdColumn;
     }
 
     public function createOrder(array $payload): int
     {
         $this->db->beginTransaction();
         try {
+            $hasUserId = $this->ordersHasUserIdColumn();
+            $userIdCol = $hasUserId ? 'user_id, ' : '';
+            $userIdVal = $hasUserId ? ':user_id, ' : '';
             $stmt = $this->db->prepare(
-                'INSERT INTO orders (customer_name, customer_phone, customer_email, user_id, payment_method, notes,
+                "INSERT INTO orders (customer_name, customer_phone, customer_email, {$userIdCol}payment_method, notes,
                                      status, erp_sync_status,
                                      subtotal_amount, shipping_amount, discount_amount, total_amount,
                                      coupon_id, coupon_code,
                                      created_at, updated_at)
-                 VALUES (:name, :phone, :email, :user_id, :payment, :notes,
+                 VALUES (:name, :phone, :email, {$userIdVal}:payment, :notes,
                          :status, :erp_sync_status,
                          :subtotal, :shipping, :discount, :total,
                          :coupon_id, :coupon_code,
-                         NOW(), NOW())'
+                         NOW(), NOW())"
             );
-            $stmt->execute([
+            $params = [
                 'name' => $payload['customer_name'],
                 'phone' => $payload['customer_phone'],
                 'email' => $payload['customer_email'] ?? null,
-                'user_id' => isset($payload['user_id']) && $payload['user_id'] ? (int)$payload['user_id'] : null,
                 'payment' => $payload['payment_method'],
                 'notes' => $payload['notes'] ?? null,
                 'status' => 'pending',
@@ -39,7 +55,11 @@ final class OrderRepository
                 'total'    => (float)($payload['total_amount'] ?? 0),
                 'coupon_id'   => isset($payload['coupon_id']) && $payload['coupon_id'] !== '' ? (int)$payload['coupon_id'] : null,
                 'coupon_code' => $payload['coupon_code'] ?? null,
-            ]);
+            ];
+            if ($hasUserId) {
+                $params['user_id'] = isset($payload['user_id']) && $payload['user_id'] ? (int)$payload['user_id'] : null;
+            }
+            $stmt->execute($params);
 
             $orderId = (int)$this->db->lastInsertId();
 
