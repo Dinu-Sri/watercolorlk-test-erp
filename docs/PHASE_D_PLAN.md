@@ -4,6 +4,20 @@
 
 ---
 
+## Confirmed decisions (locked 2026-04-30)
+
+| # | Topic | Decision |
+|---|---|---|
+| 1 | Currency | **LKR** everywhere (GA4, Meta, schema.org, payment gateways). |
+| 2 | Guest tracking | Guests **DO** fire Meta CAPI Purchase with sha256(email/phone). Guests do **NOT** get a GA4 `user_id`. |
+| 3 | Cookie consent banner | **Not required** for Sri Lanka. GTM Consent Mode defaults set to `granted` for all categories; no banner UI shipped. (Easy to add later if we expand to EU.) |
+| 4 | SEO overrides | Admin can manually edit title/description/canonical/og/noindex per page (plain text). A separate "Custom JSON-LD" textarea allows raw JSON for advanced rich results — JSON-validated on save. Plain HTML in description is stripped on save. |
+| 5 | Payment methods | **PayHere + Bank Transfer + Cash on Delivery** (all three live). Each has its own status flow + thank-you variant + admin reconciliation tool. |
+| 6 | Stock | Mirror in our DB **and** sync to/from ERP. Decrement locally on order create; restore on cancel; ERP push corrects discrepancies. |
+| 7 | Account deletion | **Admin-only** (already covered in admin/users.php). No self-delete UI for users — they contact support. |
+
+---
+
 ## Legend
 - `[ ]` not started
 - `[~]` in progress
@@ -81,12 +95,62 @@
 - [ ] `sitemap.xml.php` (rewrite `sitemap.xml` → this file via `.htaccess`): index + shop + categories + each visible product (simple/combined/pack) + account/login + cart. Use `lastmod = product.updated_at`.
 - [ ] `robots.txt` (already exists): add `Sitemap: https://watercolor.lk/sitemap.xml`. Block `/admin/`, `/account/google-callback.php`, `/api/`, `/checkout-success.php`.
 
-### 11. Account deletion (GDPR-style)
-- [ ] `account/profile.php` "Delete my account" button → confirm with password (or Google re-auth) → POST `account/delete.php`.
-- [ ] Anonymise: orders.customer_name → "Deleted user", customer_email → null, customer_phone → masked, user_id → null.
-- [ ] Hard-delete: user_addresses, user_tokens.
-- [ ] Soft-mark user: set status='deleted', email='deleted_<id>@example.invalid', password_hash=null, google_sub=null, full_name='Deleted user'.
-- [ ] Email confirmation to old address.
+### 11. ~~Account deletion (GDPR-style)~~ — DROPPED
+- Per decision #7: admin handles deletion via existing `admin/users.php` ban + admin/user-view.php (Phase D-1 #3) which will gain a "Permanently delete & anonymise" button.
+
+### 12. Expanded customer account area (replaces self-delete with proper account UX)
+- [ ] DB: extend `user_addresses` with `kind ENUM('shipping','billing','both') DEFAULT 'both'`, `is_default_shipping TINYINT(1)`, `is_default_billing TINYINT(1)`.
+- [ ] DB: add `orders.shipping_address_id`, `orders.billing_address_id`, `orders.tracking_number`, `orders.tracking_carrier`, `orders.tracking_url`, `orders.shipped_at`, `orders.delivered_at`.
+- [ ] DB: new table `support_tickets` — `id, user_id, order_id NULL, subject, body, status ENUM('open','pending','closed'), created_at, updated_at`. New table `support_messages` — `id, ticket_id, sender_kind ENUM('customer','admin'), sender_id, body, created_at`.
+- [ ] `account/index.php` polish — sectioned layout: Welcome card / Order summary / Default addresses / Quick actions.
+- [ ] `account/profile.php` polish — split into clear cards: Personal info | Password | Email (with email-change verification from D-1 #1).
+- [ ] `account/addresses.php` (extracted from current profile.php) — separate page with shipping/billing tags, default toggles, edit/delete, max 10 addresses.
+- [ ] `account/order.php` polish — show tracking status timeline (pending → confirmed → shipped (with carrier + number + tracking URL) → delivered), itemised totals, payment method, "Need help with this order?" button → opens support ticket pre-filled with order_id.
+- [ ] `account/support.php` — list tickets + create new (free-form OR linked to an order). Email admin on every customer message.
+- [ ] `account/ticket.php?id=X` — thread view, customer can reply.
+- [ ] `admin/support.php` — admin inbox: filter by status, click to open thread; reply emails the customer; closing the ticket emails customer.
+- [ ] Admin dashboard: open-ticket count KPI; "Recent support messages" widget.
+- [ ] Notification rules:
+  - Customer creates order → email customer (existing) + email admin (new).
+  - Admin updates order status → email customer.
+  - Admin adds tracking → email customer with tracking link.
+  - Customer opens ticket → email admin.
+  - Admin replies to ticket → email customer.
+  - Customer replies to ticket → email admin.
+- [ ] All admin notifications go to `MAIL_REPLY_TO` or a configurable `ADMIN_NOTIFY_EMAIL` list.
+
+### 13. Multi-payment-method support (Bank Transfer + COD + PayHere)
+- [ ] DB: ensure `orders.payment_method` ENUM has `'payhere'`, `'bank_transfer'`, `'cod'`. Add `orders.payment_status` ENUM `('unpaid','pending_verification','paid','failed','refunded')` separate from `orders.status`.
+- [ ] DB: new `bank_transfer_proofs` — `id, order_id, file_path, uploaded_by_user_id NULL, customer_note, admin_note, status ENUM('pending','verified','rejected'), uploaded_at, verified_at, verified_by_admin_id`.
+- [ ] `config/local.php` keys: `BANK_TRANSFER_DETAILS` (bank name, account name, account no, branch, swift), `COD_FEE_AMOUNT` (LKR), `COD_AVAILABLE_DISTRICTS` (array; empty = all).
+- [ ] `checkout.php` — payment method selector (radio): PayHere / Bank Transfer / COD. Each shows its own info pane:
+  - PayHere: existing flow.
+  - Bank Transfer: shows bank account details + "Upload deposit slip after placing the order" note. Order created with `payment_status='pending_verification'`.
+  - COD: shows COD fee (if any) + delivery district restriction + "Pay on delivery" copy. Order created with `payment_status='unpaid'`.
+- [ ] `account/order.php` — for bank-transfer orders without proof: "Upload deposit slip" form (POST → `account/actions/upload-proof.php`).
+- [ ] `admin/order-view.php` — payment status pill, button to verify/reject bank transfer proof, manual "Mark as paid" for COD on delivery completion.
+- [ ] Email templates per method:
+  - On order create: payment-method-aware confirmation (bank details if bank transfer, COD copy if COD).
+  - On bank-transfer verification: confirmation email.
+- [ ] All three methods fire the same `purchase` GTM event (decision: count `purchase` at order create, NOT at payment confirmation, because that's industry-standard for ecom funnels — discuss if you want it gated on payment).
+
+### 14. Thank-you page redesign
+- [ ] `checkout-success.php` redesign — branded layout with:
+  - Big tick / mascot illustration.
+  - Order number + ETA copy.
+  - Itemised summary (existing).
+  - Payment-method-specific instructions (bank slip upload CTA / COD reminder / PayHere paid confirmation).
+  - "View in my account" + "Continue shopping" buttons.
+  - Trust badges + delivery time copy.
+  - Recommended products (cross-sell, 4 items based on cart contents' categories).
+  - Customer support contact card.
+- [ ] Fires GA4 `purchase` + Meta `Purchase` events on this page (canonical conversion page).
+- [ ] Server emits `event_id` matched with Meta CAPI from `api/place-order.php`.
+
+### 15. Order tracking timeline
+- [ ] `admin/order-view.php` — fields to enter: tracking carrier (Pronto/Domex/Aramex/Self-delivery/etc), tracking number, tracking URL (auto-build for known carriers), shipped_at, delivered_at.
+- [ ] Customer's `account/order.php` — visual timeline: Pending → Confirmed → Packed → Shipped (with link) → Out for delivery → Delivered.
+- [ ] On status change to 'shipped': email customer with tracking info.
 
 ---
 
@@ -254,11 +318,10 @@ Migration file: `db/migrations/2026_07_seo.sql`.
 - [ ] Hash PII (sha256 lowercase trimmed) before sending.
 - [ ] Store `event_id` on `orders` row to allow retries.
 
-### 3.6 — Consent / privacy
-- [ ] Cookie consent banner (existing? — verify) wired to GTM Consent Mode v2:
-  - default `denied` for ad_storage, ad_user_data, ad_personalization, analytics_storage.
-  - `granted` after user accepts.
-- [ ] Document choices in `partials/site-footer.php` privacy link.
+### 3.6 — Consent (Sri Lanka — no banner)
+- [ ] GTM Consent Mode v2 defaults set to `granted` for `ad_storage`, `ad_user_data`, `ad_personalization`, `analytics_storage`. (Per decision #3.)
+- [ ] No banner UI shipped. Privacy policy link in footer remains.
+- [ ] Document the configuration in admin/integrations.php so future EU expansion only needs a banner toggle.
 
 ### 3.7 — Testing
 - [ ] GTM Preview Mode walkthrough checklist for each event.
@@ -308,19 +371,30 @@ Migration file: `db/migrations/2026_07_seo.sql`.
 ## File / module map (delivered at end of Phase D)
 
 ```
-config/app.php                    + GTM_CONTAINER_ID, GA4_MEASUREMENT_ID, META_PIXEL_ID, META_CAPI_*, GOOGLE_ADS_CONVERSION_ID
+config/app.php                    + GTM_CONTAINER_ID, GA4_MEASUREMENT_ID, META_PIXEL_ID, META_CAPI_*,
+                                   GOOGLE_ADS_CONVERSION_ID, BANK_TRANSFER_DETAILS, COD_FEE_AMOUNT,
+                                   COD_AVAILABLE_DISTRICTS, ADMIN_NOTIFY_EMAIL, BANK_PROOF_GRACE_DAYS
 db/migrations/
-  2026_07_seo.sql                 + seo_settings, seo_overrides, seo_redirects
-  2026_08_analytics.sql           + auth_attempts, search_queries.result_count/clicks, app_settings, orders.meta_event_id, users.pending_email
+  2026_07_payments.sql            + orders.payment_status, payment_method enum expanded,
+                                   bank_transfer_proofs, orders.tracking_*, orders.shipping_address_id, billing_address_id
+  2026_08_support.sql             + support_tickets, support_messages, user_addresses.kind/is_default_*
+  2026_09_seo.sql                 + seo_settings, seo_overrides, seo_redirects
+  2026_10_analytics.sql           + auth_attempts, search_queries.result_count/clicks,
+                                   app_settings, orders.meta_event_id, users.pending_email
 src/Services/
   RateLimiter.php                 NEW
   SeoService.php                  NEW
   Analytics.php                   NEW
   MetaConversionsApi.php          NEW
+  PaymentService.php              NEW (routes payhere/bank/cod, validates webhooks)
+  SupportService.php              NEW (ticket create/reply/notify)
+  TrackingService.php             NEW (carrier URL builders, status updates)
 src/Repositories/
   SeoRepository.php               NEW
   AppSettingsRepository.php       NEW
   SearchRepository.php            NEW (refactor of ensureSearchQueryTable)
+  SupportRepository.php           NEW
+  PaymentProofRepository.php      NEW
 partials/
   seo-head.php                    NEW
   seo-jsonld-footer.php           NEW
@@ -334,14 +408,22 @@ admin/
   search-analytics.php            NEW
   user-view.php                   NEW
   coupon-view.php                 NEW
+  support.php                     NEW (ticket inbox)
+  ticket.php                      NEW (thread view)
+  payment-proof.php               NEW (bank transfer verification queue)
 account/
   confirm-email-change.php        NEW
-  delete.php                      NEW
+  addresses.php                   NEW (split out of profile)
+  support.php                     NEW (ticket list + create)
+  ticket.php                      NEW (thread + reply)
+  actions/upload-proof.php        NEW
 api/
   log-search-click.php            NEW
   payhere-webhook.php             NEW (or hardened existing)
 sitemap.xml.php                   NEW
 robots.txt                        UPDATED
+checkout.php                      UPDATED (payment method selector + separate shipping/billing)
+checkout-success.php              REDESIGNED (thank-you page)
 ```
 
 ---
@@ -350,26 +432,29 @@ robots.txt                        UPDATED
 
 | Sprint | Phase | Tasks | Why first |
 |--------|-------|-------|-----------|
-| 1      | D-1   | #2 rate-limit, #5 webhook, #7 stock guard, #8 stock decrement | Security + correctness blockers |
-| 2      | D-1   | #1 email change, #3 user detail, #4 coupon redemption log, #6 emails | Customer-facing polish |
-| 3      | D-2   | SEO module end-to-end | Drives organic traffic — needed before ads |
-| 4      | D-3   | GTM core + dataLayer events + GA4/Meta tags via GTM | Required for paid campaigns |
-| 5      | D-3   | Meta CAPI + Consent Mode v2 | Ad performance & compliance |
-| 6      | D-4   | Search analytics admin UI + zero-result handling | Insights → catalog improvements |
-| 7      | D-1   | #9 dashboard polish, #10 sitemap (if not done in D-2), #11 account deletion | Cleanup |
-| 8      | D-5   | Full QA + commit fence | Launch |
+| 1      | D-1   | #2 rate-limit, #5 PayHere webhook, #7 stock guard, #8 stock decrement | Security + correctness blockers |
+| 2      | D-1   | #13 multi-payment (bank + COD), #14 thank-you redesign, #15 tracking | Revenue-enabling — bank/COD live |
+| 3      | D-1   | #1 email change, #3 admin user detail, #4 coupon redemption log, #6 email branding | Customer-facing polish |
+| 4      | D-1   | #12 expanded account area (addresses split, support tickets, profile cards) | Customer self-service |
+| 5      | D-2   | SEO module end-to-end (settings, overrides, JSON-LD, sitemap, redirects) | Drives organic — needed before paid |
+| 6      | D-3   | GTM core + dataLayer events + GA4/Meta tags configured in GTM | Required for paid campaigns |
+| 7      | D-3   | Meta CAPI server-side + Consent Mode (granted defaults for LK) | Ad performance + future-proof |
+| 8      | D-4   | Search analytics admin + zero-result handling + click-through | Catalog improvements |
+| 9      | D-1   | #9 dashboard polish, #10 sitemap (if not done in D-2) | Cleanup |
+| 10     | D-5   | Full QA + commit fence + Search Console submission | Launch |
 
 ---
 
 ## Open decisions (to confirm before sprint 1)
 
-- [ ] Currency: confirm GA4/Meta currency = `LKR`.
-- [ ] Should anonymous (guest) checkouts also fire GA4 user_id / Meta CAPI? (Recommendation: yes for CAPI with hashed email/phone, no for GA4 user_id.)
-- [ ] Cookie consent: opt-in (EU style) or opt-out (default-on for LK)? (Affects Consent Mode defaults.)
-- [ ] Should admin `seo_overrides` allow raw HTML in description? (Recommend: no, plain text only — strip on save.)
-- [ ] PayHere is the only payment gateway? (Affects webhook scope.)
-- [ ] Stock decrement: do we mirror in our DB or rely solely on ERP push-back? (Recommendation: mirror in our DB; ERP corrects on next sync.)
-- [ ] Account deletion: anonymise vs hard-delete (regulatory)?
+_All previous decisions are locked at top of doc._ Sub-decisions still TBD:
+
+- [ ] COD fee: do we charge a fixed LKR amount or free? (Current placeholder: configurable, default 0.)
+- [ ] COD district restrictions: any districts to exclude? (Current placeholder: all-island available.)
+- [ ] Bank transfer auto-cancel: auto-cancel order if no proof uploaded after N days? (Recommend 5 days, configurable.)
+- [ ] `purchase` event timing: fire on order-create (industry-standard, includes unpaid bank/COD) or on payment-confirmed? (Recommend order-create + a separate `payment_confirmed` custom event.)
+- [ ] Order ETA copy on thank-you page: do we have a delivery SLA? (e.g. "2–4 working days within Western Province, 3–7 elsewhere".)
+- [ ] Support ticket SLAs: visible response time on the customer support page? (e.g. "We reply within 24 hours".)
 
 ---
 
