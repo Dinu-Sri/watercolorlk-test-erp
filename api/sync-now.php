@@ -11,7 +11,7 @@ if ($key !== SYNC_WEBHOOK_KEY) {
 }
 
 try {
-    $catalog = new CatalogSyncService(appErpClient(), new ProductRepository(appDb()));
+    $catalog = new CatalogSyncService(appErpClient(), new ProductRepository(appDb()), appDb());
     $orderSync = new OrderSyncService(appErpClient(), new OrderRepository(appDb()));
 
     $catalogResult = $catalog->syncProducts();

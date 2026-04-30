@@ -123,7 +123,7 @@ function runDbSchema(): array
 
 function runSync(): array
 {
-    $catalogService = new CatalogSyncService(appErpClient(), new ProductRepository(appDb()));
+    $catalogService = new CatalogSyncService(appErpClient(), new ProductRepository(appDb()), appDb());
     $orderService = new OrderSyncService(appErpClient(), new OrderRepository(appDb()));
 
     $catalog = $catalogService->syncProducts();

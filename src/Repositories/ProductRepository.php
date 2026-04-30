@@ -89,13 +89,15 @@ SQL;
     {
         $sql = <<<SQL
 SELECT p.id, p.erp_product_id, p.sku, p.name,
-    COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
-       COALESCE(po.override_image_url, p.image_url) AS image_url,
-       COALESCE(po.override_price, p.price) AS price,
-       COALESCE(po.override_badge, '') AS badge
+    COALESCE(NULLIF(sp.slug,''), po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
+       COALESCE(NULLIF(sp.hero_image_url,''), po.override_image_url, p.image_url) AS image_url,
+       COALESCE(sp.base_price, po.override_price, p.price) AS price,
+       COALESCE(NULLIF(sp.badge,''), po.override_badge, '') AS badge
 FROM products p
 LEFT JOIN product_overrides po ON po.product_id = p.id
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
 WHERE p.is_active = 1
+  AND COALESCE(sp.is_visible, 1) = 1
     AND (
             LOWER(p.name) LIKE LOWER(:q)
             OR LOWER(COALESCE(po.override_title, '')) LIKE LOWER(:q)
@@ -116,7 +118,7 @@ SQL;
 
     public function listProducts(string $query = '', int $limit = 24, int $offset = 0): array
     {
-        $where = 'p.is_active = 1';
+        $where = "p.is_active = 1 AND COALESCE(sp.is_visible, 1) = 1";
         $params = [];
 
         if ($query !== '') {
@@ -132,17 +134,18 @@ SQL;
 
         $sql = <<<SQL
 SELECT p.id, p.erp_product_id, p.sku, p.name,
-       COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
-       COALESCE(NULLIF(po.override_title, ''), p.name) AS display_name,
-       COALESCE(NULLIF(po.override_description, ''), p.description) AS display_description,
-       COALESCE(po.override_image_url, p.image_url) AS image_url,
-       COALESCE(po.override_price, p.price) AS price,
+       COALESCE(NULLIF(sp.slug,''), po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
+       COALESCE(NULLIF(sp.title,''), NULLIF(po.override_title, ''), p.name) AS display_name,
+       COALESCE(NULLIF(sp.description,''), NULLIF(po.override_description, ''), p.description) AS display_description,
+       COALESCE(NULLIF(sp.hero_image_url,''), po.override_image_url, p.image_url) AS image_url,
+       COALESCE(sp.base_price, po.override_price, p.price) AS price,
        p.stock_qty,
        p.category_name,
        p.brand_name,
-       COALESCE(po.override_badge, '') AS badge
+       COALESCE(NULLIF(sp.badge,''), po.override_badge, '') AS badge
 FROM products p
 LEFT JOIN product_overrides po ON po.product_id = p.id
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
 WHERE $where
 ORDER BY p.stock_qty > 0 DESC, p.name ASC
 LIMIT :limit OFFSET :offset
@@ -163,17 +166,19 @@ SQL;
     {
         $sql = <<<SQL
 SELECT p.id, p.erp_product_id, p.sku,
-       COALESCE(NULLIF(po.override_title, ''), p.name) AS name,
-       COALESCE(NULLIF(po.override_description, ''), p.description) AS description,
-       COALESCE(po.override_image_url, p.image_url) AS image_url,
-       COALESCE(po.override_price, p.price) AS price,
+       COALESCE(NULLIF(sp.title,''), NULLIF(po.override_title, ''), p.name) AS name,
+       COALESCE(NULLIF(sp.description,''), NULLIF(po.override_description, ''), p.description) AS description,
+       COALESCE(NULLIF(sp.hero_image_url,''), po.override_image_url, p.image_url) AS image_url,
+       COALESCE(sp.base_price, po.override_price, p.price) AS price,
        p.stock_qty,
        p.category_name,
        p.brand_name,
-       COALESCE(po.override_badge, '') AS badge,
-       COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug
+       COALESCE(NULLIF(sp.badge,''), po.override_badge, '') AS badge,
+       COALESCE(NULLIF(sp.slug,''), po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
+       COALESCE(sp.is_visible, 1) AS is_visible
 FROM products p
 LEFT JOIN product_overrides po ON po.product_id = p.id
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
 WHERE p.erp_product_id = :erp_product_id
 LIMIT 1
 SQL;
@@ -189,20 +194,35 @@ SQL;
 
     public function getBySlug(string $slug): ?array
     {
+        /* Prefer storefront_products.slug for kind='simple' visible rows. */
+        $spStmt = $this->db->prepare(
+            "SELECT erp_product_id FROM storefront_products
+             WHERE kind = 'simple' AND is_visible = 1 AND LOWER(slug) = LOWER(:slug)
+             LIMIT 1"
+        );
+        $spStmt->execute(['slug' => $slug]);
+        $spRow = $spStmt->fetch();
+        if ($spRow && !empty($spRow['erp_product_id'])) {
+            $hit = $this->getByErpId((int)$spRow['erp_product_id']);
+            if ($hit !== null) return $hit;
+        }
+
         $sql = <<<SQL
 SELECT p.id, p.erp_product_id, p.sku,
-       COALESCE(NULLIF(po.override_title, ''), p.name) AS name,
-       COALESCE(NULLIF(po.override_description, ''), p.description) AS description,
-       COALESCE(po.override_image_url, p.image_url) AS image_url,
-       COALESCE(po.override_price, p.price) AS price,
+       COALESCE(NULLIF(sp.title,''), NULLIF(po.override_title, ''), p.name) AS name,
+       COALESCE(NULLIF(sp.description,''), NULLIF(po.override_description, ''), p.description) AS description,
+       COALESCE(NULLIF(sp.hero_image_url,''), po.override_image_url, p.image_url) AS image_url,
+       COALESCE(sp.base_price, po.override_price, p.price) AS price,
        p.stock_qty,
        p.category_name,
        p.brand_name,
-       COALESCE(po.override_badge, '') AS badge,
-       COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug
+       COALESCE(NULLIF(sp.badge,''), po.override_badge, '') AS badge,
+       COALESCE(NULLIF(sp.slug,''), po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug
 FROM products p
 LEFT JOIN product_overrides po ON po.product_id = p.id
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
 WHERE p.is_active = 1
+  AND COALESCE(sp.is_visible, 1) = 1
   AND LOWER(COALESCE(NULLIF(po.override_slug, ''), '')) = LOWER(:slug)
 LIMIT 1
 SQL;
@@ -263,29 +283,37 @@ SQL;
     {
         $sql = <<<SQL
 SELECT p.id, p.erp_product_id, p.sku, p.name,
-       COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
-       COALESCE(NULLIF(po.override_title, ''), p.name) AS display_name,
-       COALESCE(po.override_image_url, p.image_url) AS image_url,
-       COALESCE(po.override_price, p.price) AS price,
-       p.price AS original_price,
+       COALESCE(NULLIF(sp.slug,''), po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
+       COALESCE(NULLIF(sp.title,''), NULLIF(po.override_title, ''), p.name) AS display_name,
+       COALESCE(NULLIF(sp.hero_image_url,''), po.override_image_url, p.image_url) AS image_url,
+       COALESCE(fd.deal_price, sp.base_price, po.override_price, p.price) AS price,
+       COALESCE(fd.original_price, p.price) AS original_price,
        p.stock_qty,
        p.category_name,
        p.brand_name,
-       COALESCE(po.override_badge, '') AS badge,
+       COALESCE(NULLIF(fd.deal_label,''), NULLIF(sp.badge,''), po.override_badge, '') AS badge,
        CASE
+            WHEN fd.deal_price IS NOT NULL AND COALESCE(fd.original_price, p.price) > 0 AND fd.deal_price < COALESCE(fd.original_price, p.price)
+                THEN ((COALESCE(fd.original_price, p.price) - fd.deal_price) / COALESCE(fd.original_price, p.price)) * 100
             WHEN po.override_price IS NOT NULL AND p.price > 0 AND po.override_price < p.price
                 THEN ((p.price - po.override_price) / p.price) * 100
             ELSE 0
        END AS discount_pct
 FROM products p
 LEFT JOIN product_overrides po ON po.product_id = p.id
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
+LEFT JOIN flash_deals fd ON fd.storefront_product_id = sp.id AND fd.is_active = 1
+    AND (fd.starts_at IS NULL OR fd.starts_at <= NOW())
+    AND (fd.ends_at IS NULL OR fd.ends_at >= NOW())
 WHERE p.is_active = 1
+  AND COALESCE(sp.is_visible, 1) = 1
   AND p.stock_qty > 0
   AND (
-        (po.override_price IS NOT NULL AND po.override_price < p.price)
+        fd.id IS NOT NULL
+        OR (po.override_price IS NOT NULL AND po.override_price < p.price)
         OR p.stock_qty <= 12
   )
-ORDER BY discount_pct DESC, p.stock_qty ASC, p.updated_at DESC
+ORDER BY (fd.id IS NOT NULL) DESC, discount_pct DESC, p.stock_qty ASC, p.updated_at DESC
 LIMIT :limit
 SQL;
         $stmt = $this->db->prepare($sql);
@@ -299,17 +327,18 @@ SQL;
     {
         $sql = <<<SQL
 SELECT p.id, p.erp_product_id, p.sku, p.name,
-       COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
-       COALESCE(NULLIF(po.override_title, ''), p.name) AS display_name,
-       COALESCE(po.override_image_url, p.image_url) AS image_url,
-       COALESCE(po.override_price, p.price) AS price,
+       COALESCE(NULLIF(sp.slug,''), po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
+       COALESCE(NULLIF(sp.title,''), NULLIF(po.override_title, ''), p.name) AS display_name,
+       COALESCE(NULLIF(sp.hero_image_url,''), po.override_image_url, p.image_url) AS image_url,
+       COALESCE(sp.base_price, po.override_price, p.price) AS price,
        p.stock_qty,
        p.category_name,
        p.brand_name,
-       COALESCE(po.override_badge, '') AS badge
+       COALESCE(NULLIF(sp.badge,''), po.override_badge, '') AS badge
 FROM products p
 LEFT JOIN product_overrides po ON po.product_id = p.id
-WHERE p.is_active = 1 AND p.stock_qty > 0
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
+WHERE p.is_active = 1 AND COALESCE(sp.is_visible, 1) = 1 AND p.stock_qty > 0
 ORDER BY p.stock_qty DESC, p.updated_at DESC
 LIMIT :limit
 SQL;
@@ -325,11 +354,13 @@ SQL;
         $results = [];
         $sql = <<<SQL
 SELECT COUNT(*) AS cnt
-FROM products
-WHERE is_active = 1
+FROM products p
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
+WHERE p.is_active = 1
+  AND COALESCE(sp.is_visible, 1) = 1
   AND (
-        LOWER(COALESCE(category_name, '')) LIKE LOWER(:kw)
-        OR LOWER(COALESCE(name, '')) LIKE LOWER(:kw)
+        LOWER(COALESCE(p.category_name, '')) LIKE LOWER(:kw)
+        OR LOWER(COALESCE(p.name, '')) LIKE LOWER(:kw)
   )
 SQL;
         $stmt = $this->db->prepare($sql);
@@ -346,16 +377,18 @@ SQL;
     {
         $sql = <<<SQL
 SELECT p.id, p.erp_product_id, p.sku,
-    COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
-       COALESCE(NULLIF(po.override_title, ''), p.name) AS display_name,
-       COALESCE(po.override_image_url, p.image_url) AS image_url,
-       COALESCE(po.override_price, p.price) AS price,
+    COALESCE(NULLIF(sp.slug,''), po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
+       COALESCE(NULLIF(sp.title,''), NULLIF(po.override_title, ''), p.name) AS display_name,
+       COALESCE(NULLIF(sp.hero_image_url,''), po.override_image_url, p.image_url) AS image_url,
+       COALESCE(sp.base_price, po.override_price, p.price) AS price,
        p.stock_qty,
        p.category_name,
-       COALESCE(po.override_badge, '') AS badge
+       COALESCE(NULLIF(sp.badge,''), po.override_badge, '') AS badge
 FROM products p
 LEFT JOIN product_overrides po ON po.product_id = p.id
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
 WHERE p.is_active = 1
+  AND COALESCE(sp.is_visible, 1) = 1
   AND p.erp_product_id <> :exclude_erp_id
   AND LOWER(COALESCE(p.category_name, '')) = LOWER(:category_name)
 ORDER BY p.stock_qty > 0 DESC, p.stock_qty DESC, p.updated_at DESC
@@ -386,7 +419,7 @@ SQL;
      */
     public function searchProducts(array $filters): array
     {
-        $where = ['p.is_active = 1'];
+        $where = ['p.is_active = 1', 'COALESCE(sp.is_visible, 1) = 1'];
         $params = [];
 
         $q = trim((string)($filters['q'] ?? ''));
@@ -481,18 +514,19 @@ SQL;
 
         $sql = <<<SQL
 SELECT p.id, p.erp_product_id, p.sku, p.name,
-       COALESCE(po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
-       COALESCE(NULLIF(po.override_title, ''), p.name) AS display_name,
-       COALESCE(NULLIF(po.override_description, ''), p.description) AS display_description,
-       COALESCE(po.override_image_url, p.image_url) AS image_url,
-       COALESCE(po.override_price, p.price) AS price,
+       COALESCE(NULLIF(sp.slug,''), po.override_slug, CONCAT('product-', p.erp_product_id)) AS slug,
+       COALESCE(NULLIF(sp.title,''), NULLIF(po.override_title, ''), p.name) AS display_name,
+       COALESCE(NULLIF(sp.description,''), NULLIF(po.override_description, ''), p.description) AS display_description,
+       COALESCE(NULLIF(sp.hero_image_url,''), po.override_image_url, p.image_url) AS image_url,
+       COALESCE(sp.base_price, po.override_price, p.price) AS price,
        p.price AS original_price,
        p.stock_qty,
        p.category_name,
        p.brand_name,
-       COALESCE(po.override_badge, '') AS badge
+       COALESCE(NULLIF(sp.badge,''), po.override_badge, '') AS badge
 FROM products p
 LEFT JOIN product_overrides po ON po.product_id = p.id
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
 WHERE $whereSql
 ORDER BY $orderBy
 LIMIT :limit OFFSET :offset
@@ -507,7 +541,7 @@ SQL;
         $stmt->execute();
         $rows = array_map(fn(array $r): array => $this->hydrateSeoSlug($r), $stmt->fetchAll());
 
-        $countSql = "SELECT COUNT(*) AS c FROM products p LEFT JOIN product_overrides po ON po.product_id = p.id WHERE $whereSql";
+        $countSql = "SELECT COUNT(*) AS c FROM products p LEFT JOIN product_overrides po ON po.product_id = p.id LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple' WHERE $whereSql";
         $countStmt = $this->db->prepare($countSql);
         foreach ($params as $key => $value) {
             /* relevance ORDER BY params do not appear in WHERE — skip them. */
@@ -524,10 +558,13 @@ SQL;
     public function listAllCategories(): array
     {
         $sql = <<<SQL
-SELECT TRIM(COALESCE(category_name, '')) AS name, COUNT(*) AS cnt
-FROM products
-WHERE is_active = 1 AND TRIM(COALESCE(category_name, '')) <> ''
-GROUP BY TRIM(COALESCE(category_name, ''))
+SELECT TRIM(COALESCE(p.category_name, '')) AS name, COUNT(*) AS cnt
+FROM products p
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
+WHERE p.is_active = 1
+  AND COALESCE(sp.is_visible, 1) = 1
+  AND TRIM(COALESCE(p.category_name, '')) <> ''
+GROUP BY TRIM(COALESCE(p.category_name, ''))
 ORDER BY cnt DESC, name ASC
 SQL;
         $stmt = $this->db->query($sql);
@@ -538,10 +575,13 @@ SQL;
     public function listAllBrands(): array
     {
         $sql = <<<SQL
-SELECT TRIM(COALESCE(brand_name, '')) AS name, COUNT(*) AS cnt
-FROM products
-WHERE is_active = 1 AND TRIM(COALESCE(brand_name, '')) <> ''
-GROUP BY TRIM(COALESCE(brand_name, ''))
+SELECT TRIM(COALESCE(p.brand_name, '')) AS name, COUNT(*) AS cnt
+FROM products p
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
+WHERE p.is_active = 1
+  AND COALESCE(sp.is_visible, 1) = 1
+  AND TRIM(COALESCE(p.brand_name, '')) <> ''
+GROUP BY TRIM(COALESCE(p.brand_name, ''))
 ORDER BY cnt DESC, name ASC
 SQL;
         $stmt = $this->db->query($sql);
@@ -590,11 +630,12 @@ SQL;
     {
         $sql = <<<SQL
 SELECT
-    MIN(COALESCE(po.override_price, p.price)) AS min_price,
-    MAX(COALESCE(po.override_price, p.price)) AS max_price
+    MIN(COALESCE(sp.base_price, po.override_price, p.price)) AS min_price,
+    MAX(COALESCE(sp.base_price, po.override_price, p.price)) AS max_price
 FROM products p
 LEFT JOIN product_overrides po ON po.product_id = p.id
-WHERE p.is_active = 1
+LEFT JOIN storefront_products sp ON sp.erp_product_id = p.erp_product_id AND sp.kind = 'simple'
+WHERE p.is_active = 1 AND COALESCE(sp.is_visible, 1) = 1
 SQL;
         $stmt = $this->db->query($sql);
         $row = $stmt ? $stmt->fetch() : null;

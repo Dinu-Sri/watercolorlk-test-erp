@@ -2,28 +2,26 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../bootstrap.php';
+/**
+ * Legacy unauthenticated override endpoint. Replaced by the authenticated flow
+ * under admin/products.php / admin/product-edit.php. This file now redirects.
+ */
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo 'Method not allowed';
-    exit;
+require_once __DIR__ . '/_bootstrap.php';
+
+$pid = (int)($_POST['product_id'] ?? $_GET['product_id'] ?? 0);
+if ($pid > 0) {
+    $stmt = appDb()->prepare(
+        "SELECT sp.id FROM storefront_products sp
+         INNER JOIN products p ON p.erp_product_id = sp.erp_product_id AND sp.kind = 'simple'
+         WHERE p.id = :id LIMIT 1"
+    );
+    $stmt->execute([':id' => $pid]);
+    $sid = (int)($stmt->fetch()['id'] ?? 0);
+    if ($sid > 0) {
+        header('Location: ' . adminUrl('product-edit.php?id=' . $sid));
+        exit;
+    }
 }
-
-try {
-    $repo = new ProductRepository(appDb());
-    $repo->saveOverride((int)($_POST['product_id'] ?? 0), [
-        'slug' => trim((string)($_POST['slug'] ?? '')),
-        'title' => trim((string)($_POST['title'] ?? '')),
-        'description' => trim((string)($_POST['description'] ?? '')),
-        'image_url' => trim((string)($_POST['image_url'] ?? '')),
-        'price' => trim((string)($_POST['price'] ?? '')),
-        'badge' => trim((string)($_POST['badge'] ?? '')),
-    ]);
-
-    header('Location: index.php');
-    exit;
-} catch (Throwable $e) {
-    http_response_code(500);
-    echo 'Failed to save override: ' . htmlspecialchars($e->getMessage());
-}
+header('Location: ' . adminUrl('products.php'));
+exit;

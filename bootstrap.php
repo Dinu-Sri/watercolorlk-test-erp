@@ -5,12 +5,22 @@ declare(strict_types=1);
 require_once __DIR__ . '/config/app.php';
 require_once __DIR__ . '/src/Support/Database.php';
 require_once __DIR__ . '/src/Support/JsonResponse.php';
+require_once __DIR__ . '/src/Support/Csrf.php';
+require_once __DIR__ . '/src/Support/Flash.php';
+require_once __DIR__ . '/src/Support/Pagination.php';
 require_once __DIR__ . '/src/Repositories/ProductRepository.php';
 require_once __DIR__ . '/src/Repositories/OrderRepository.php';
 require_once __DIR__ . '/src/Repositories/GoogleReviewRepository.php';
+require_once __DIR__ . '/src/Repositories/StorefrontRepository.php';
+require_once __DIR__ . '/src/Repositories/CategoryRepository.php';
+require_once __DIR__ . '/src/Repositories/FlashDealRepository.php';
+require_once __DIR__ . '/src/Repositories/CouponRepository.php';
+require_once __DIR__ . '/src/Repositories/AdminUserRepository.php';
 require_once __DIR__ . '/src/Services/ErpClient.php';
 require_once __DIR__ . '/src/Services/CatalogSyncService.php';
 require_once __DIR__ . '/src/Services/OrderSyncService.php';
+require_once __DIR__ . '/src/Services/CouponService.php';
+require_once __DIR__ . '/src/Services/AdminAuth.php';
 
 function appDb(): PDO
 {

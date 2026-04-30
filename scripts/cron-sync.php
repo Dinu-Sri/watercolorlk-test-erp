@@ -5,7 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../bootstrap.php';
 
 try {
-    $catalogService = new CatalogSyncService(appErpClient(), new ProductRepository(appDb()));
+    $catalogService = new CatalogSyncService(appErpClient(), new ProductRepository(appDb()), appDb());
     $orderService = new OrderSyncService(appErpClient(), new OrderRepository(appDb()));
 
     $catalog = $catalogService->syncProducts();

@@ -2,66 +2,58 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../bootstrap.php';
+require_once __DIR__ . '/_bootstrap.php';
 
-$repo = new ProductRepository(appDb());
-$products = $repo->listProducts('', 100, 0);
+$db = appDb();
+
+$counts = [
+    'visible' => 0, 'hidden' => 0, 'simple' => 0, 'combined' => 0, 'pack' => 0,
+    'active_coupons' => 0, 'active_flash' => 0, 'pending_orders' => 0, 'reviews_active' => 0,
+];
+
+try {
+    foreach ($db->query('SELECT is_visible, kind, COUNT(*) AS c FROM storefront_products GROUP BY is_visible, kind') as $r) {
+        $counts[$r['is_visible'] ? 'visible' : 'hidden'] += (int)$r['c'];
+        $counts[(string)$r['kind']] = ($counts[(string)$r['kind']] ?? 0) + (int)$r['c'];
+    }
+} catch (Throwable $e) {}
+
+try { $counts['active_coupons'] = (int)($db->query("SELECT COUNT(*) c FROM coupons WHERE is_active = 1")->fetch()['c'] ?? 0); } catch (Throwable $e) {}
+try {
+    $counts['active_flash'] = (int)($db->query(
+        "SELECT COUNT(*) c FROM flash_deals
+         WHERE is_active = 1
+           AND (starts_at IS NULL OR starts_at <= NOW())
+           AND (ends_at IS NULL OR ends_at >= NOW())"
+    )->fetch()['c'] ?? 0);
+} catch (Throwable $e) {}
+try { $counts['pending_orders'] = (int)($db->query("SELECT COUNT(*) c FROM orders WHERE erp_sync_status = 'pending'")->fetch()['c'] ?? 0); } catch (Throwable $e) {}
+try { $counts['reviews_active'] = (int)($db->query("SELECT COUNT(*) c FROM google_reviews WHERE is_active = 1")->fetch()['c'] ?? 0); } catch (Throwable $e) {}
+
+$pageTitle = 'Dashboard';
+$activeNav = 'dashboard';
+require __DIR__ . '/_layout_top.php';
 ?>
-<!doctype html>
-<html lang="en">
-<head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Admin | Product Overrides</title>
-    <style>
-        body { margin: 0; font-family: "Segoe UI", Tahoma, sans-serif; background: #f7f7f7; color: #16253a; }
-        .wrap { max-width: 1050px; margin: 0 auto; padding: 20px; }
-        table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 12px; overflow: hidden; }
-        th, td { padding: 10px; border-bottom: 1px solid #ececec; text-align: left; font-size: 14px; }
-        form { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 16px; background: #fff; border-radius: 12px; padding: 12px; }
-        input, textarea, button { width: 100%; box-sizing: border-box; padding: 9px; border: 1px solid #d2d2d2; border-radius: 8px; }
-        button { background: #16253a; color: #fff; font-weight: 700; border: 0; cursor: pointer; }
-        .full { grid-column: 1 / -1; }
-    </style>
-</head>
-<body>
-<div class="wrap">
-    <h1>Product Overrides</h1>
-    <p>Use this to override ERP image/content when ERP quality is low.</p>
-
-    <table>
-        <thead>
-        <tr>
-            <th>ERP ID</th>
-            <th>Name</th>
-            <th>SKU</th>
-            <th>Price</th>
-            <th>Stock</th>
-        </tr>
-        </thead>
-        <tbody>
-        <?php foreach ($products as $p): ?>
-            <tr>
-                <td><?= (int)$p['erp_product_id'] ?></td>
-                <td><?= htmlspecialchars((string)$p['display_name']) ?></td>
-                <td><?= htmlspecialchars((string)$p['sku']) ?></td>
-                <td>LKR <?= number_format((float)$p['price'], 2) ?></td>
-                <td><?= (float)$p['stock_qty'] ?></td>
-            </tr>
-        <?php endforeach; ?>
-        </tbody>
-    </table>
-
-    <form action="save-override.php" method="post">
-        <input name="product_id" type="number" placeholder="Local product_id (not ERP ID)" required>
-        <input name="slug" placeholder="SEO slug">
-        <input name="title" placeholder="Override title">
-        <input name="image_url" placeholder="Override image URL">
-        <input name="price" type="number" step="0.01" placeholder="Override price">
-        <input name="badge" placeholder="Badge text">
-        <textarea class="full" name="description" rows="5" placeholder="Override description"></textarea>
-        <button class="full" type="submit">Save Override</button>
-    </form>
+<div class="kpis">
+    <div class="kpi"><div class="lbl">Visible products</div><div class="val"><?= (int)$counts['visible'] ?></div></div>
+    <div class="kpi"><div class="lbl">Hidden products</div><div class="val"><?= (int)$counts['hidden'] ?></div></div>
+    <div class="kpi"><div class="lbl">Simple</div><div class="val"><?= (int)($counts['simple'] ?? 0) ?></div></div>
+    <div class="kpi"><div class="lbl">Combined</div><div class="val"><?= (int)($counts['combined'] ?? 0) ?></div></div>
+    <div class="kpi"><div class="lbl">Packs</div><div class="val"><?= (int)($counts['pack'] ?? 0) ?></div></div>
+    <div class="kpi"><div class="lbl">Active coupons</div><div class="val"><?= (int)$counts['active_coupons'] ?></div></div>
+    <div class="kpi"><div class="lbl">Active flash deals</div><div class="val"><?= (int)$counts['active_flash'] ?></div></div>
+    <div class="kpi"><div class="lbl">Pending orders</div><div class="val"><?= (int)$counts['pending_orders'] ?></div></div>
+    <div class="kpi"><div class="lbl">Active reviews</div><div class="val"><?= (int)$counts['reviews_active'] ?></div></div>
 </div>
-</body>
-</html>
+
+<div class="card" style="margin-top:20px">
+    <h2>Quick start</h2>
+    <ul style="margin:0; padding-left:20px; line-height:1.9">
+        <li>Curate the catalog → <a href="<?= h(adminUrl('products.php')) ?>">Products</a> (toggle visibility, edit titles/images/prices)</li>
+        <li>Build color/size variant pages → <a href="<?= h(adminUrl('combined.php')) ?>">Combined Products</a></li>
+        <li>Build bundles → <a href="<?= h(adminUrl('packs.php')) ?>">Packs</a></li>
+        <li>Schedule sales → <a href="<?= h(adminUrl('flash-deals.php')) ?>">Flash Deals</a> · <a href="<?= h(adminUrl('coupons.php')) ?>">Coupons</a></li>
+        <li>Add a manual customer review → <a href="<?= h(adminUrl('reviews.php')) ?>">Reviews</a></li>
+    </ul>
+</div>
+<?php require __DIR__ . '/_layout_bottom.php';
